@@ -7,13 +7,13 @@
 /// <typeparam name="TError">The type of the error in case of failure.</typeparam>
 public readonly struct Result<T, TError>
 {
-    private readonly T? value;
-    private readonly TError? error;
+    private readonly T? _value;
+    private readonly TError? _error;
 
     private Result(T? value, TError? error, bool isSuccess)
     {
-        this.value = value;
-        this.error = error;
+        this._value = value;
+        this._error = error;
         IsSuccess = isSuccess;
     }
 
@@ -31,13 +31,13 @@ public readonly struct Result<T, TError>
     /// Gets the value of the result if it is a success.
     /// </summary>
     /// <exception cref="InvalidOperationException">Thrown if the result is a failure.</exception>
-    public T Value => IsSuccess ? value! : throw new InvalidOperationException("Result is a failure.");
+    public T Value => IsSuccess ? _value! : throw new InvalidOperationException("Result is a failure.");
 
     /// <summary>
     /// Gets the error of the result if it is a failure.
     /// </summary>
     /// <exception cref="InvalidOperationException">Thrown if the result is a success.</exception>
-    public TError Error => IsFailure ? error! : throw new InvalidOperationException("Result is a success.");
+    public TError Error => IsFailure ? _error! : throw new InvalidOperationException("Result is a success.");
 
     /// <summary>
     /// Creates a successful result.
@@ -60,7 +60,7 @@ public readonly struct Result<T, TError>
     /// <param name="map">A function to transform the value of the current result.</param>
     /// <returns>A new result containing the transformed value if the current result is a success; otherwise, a failed result with the same error.</returns>
     public Result<TResult, TError> Map<TResult>(Func<T, TResult> map) =>
-        IsSuccess ? Result<TResult, TError>.Success(map(value!)) : Result<TResult, TError>.Failure(error!);
+        IsSuccess ? Result<TResult, TError>.Success(map(_value!)) : Result<TResult, TError>.Failure(_error!);
 
     /// <summary>
     /// Maps the error of a failed result to a new result using the provided mapping function.
@@ -69,7 +69,7 @@ public readonly struct Result<T, TError>
     /// <param name="map">A function to transform the error of the current result.</param>
     /// <returns>A new result containing the transformed error if the current result is a failure; otherwise, a successful result with the same value.</returns>
     public Result<T, TResultError> MapError<TResultError>(Func<TError, TResultError> map) =>
-        IsFailure ? Result<T, TResultError>.Failure(map(error!)) : Result<T, TResultError>.Success(value!);
+        IsFailure ? Result<T, TResultError>.Failure(map(_error!)) : Result<T, TResultError>.Success(_value!);
     
     /// <summary>
     /// Implicitly converts a value of type <typeparamref name="T"/> to a successful <see cref="Result{T, TError}"/>.

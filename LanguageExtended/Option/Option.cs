@@ -6,13 +6,13 @@
 /// <typeparam name="T"> The type of the value of the Option </typeparam>
 public readonly struct Option<T>  : IEquatable<Option<T>> where T : class
 {
-    private readonly T? value;
+    private readonly T? _value;
 
     /// <summary>
     /// Constructor to create an Option with a value
     /// </summary>
     /// <param name="value"> The value of the Option object </param>
-    private Option(T? value) => this.value = value;
+    private Option(T? value) => this._value = value;
     
     /// <summary>
     /// Factory method to create an Option with a value
@@ -29,12 +29,23 @@ public readonly struct Option<T>  : IEquatable<Option<T>> where T : class
     /// <summary>
     /// Indicates whether the current Option has a value.
     /// </summary>
-    public bool IsSome => value is not null;
+    public bool IsSome => _value is not null;
+    
+    /// <summary>
+    /// Trys to get the value of the current Option.
+    /// </summary>
+    /// <param name="value">The value of the Option</param>
+    /// <returns>true if Option has a value, otherwise false</returns>
+    public bool TryGetValue(out T? value)
+    {
+        value = _value;
+        return IsSome;
+    }
     
     /// <summary>
     /// Indicates whether the current Option has no value.
     /// </summary>
-    public bool IsNone => value is null;
+    public bool IsNone => _value is null;
     
     /// <summary>
     /// Maps the value of the current Option to a new Option using the provided mapping function.
@@ -46,7 +57,7 @@ public readonly struct Option<T>  : IEquatable<Option<T>> where T : class
     /// otherwise, an empty Option of type TResult.
     /// </returns>
     public Option<TResult> Map<TResult>(Func<T, TResult> map) where TResult : class => 
-        value is null ? Option<TResult>.None() : Option<TResult>.Some(map(value));
+        _value is null ? Option<TResult>.None() : Option<TResult>.Some(map(_value));
     
     /// <summary>
     /// Maps the value of the current Option to a new Option using the provided mapping function that returns an Option.
@@ -58,20 +69,20 @@ public readonly struct Option<T>  : IEquatable<Option<T>> where T : class
     /// otherwise, an empty Option of type TResult.
     /// </returns>
     public Option<TResult> MapOptional<TResult>(Func<T, Option<TResult>> map) where TResult : class =>
-        value is null ? Option<TResult>.None() : map(value);
+        _value is null ? Option<TResult>.None() : map(_value);
     
     /// <summary>
     /// Returns the value of the current Option if it has a value; otherwise, returns the specified default value.
     /// </summary>
     /// <param name="defaultValue">The default value to return if the Option has no value.</param>
     /// <returns>The value of the current Option if it has a value; otherwise, the specified default value.</returns>
-    public T Reduce(T defaultValue) => value ?? defaultValue;
+    public T Reduce(T defaultValue) => _value ?? defaultValue;
     /// <summary>
     /// Returns the value of the current Option if it has a value; otherwise, returns the value produced by the specified function.
     /// </summary>
     /// <param name="defaultValue">A function that produces the default value to return if the Option has no value.</param>
     /// <returns>The value of the current Option if it has a value; otherwise, the value produced by the specified function.</returns>
-    public T Reduce(Func<T> defaultValue) => value ?? defaultValue();
+    public T Reduce(Func<T> defaultValue) => _value ?? defaultValue();
     
     /// <summary>
     /// Filters the current Option based on the provided predicate.
@@ -81,7 +92,7 @@ public readonly struct Option<T>  : IEquatable<Option<T>> where T : class
     /// The current Option if it has a value and the value satisfies the predicate;
     /// otherwise, an empty Option.
     /// </returns>
-    public Option<T> Where(Func<T, bool> predicate) => value is null || !predicate(value) ? None() : this;
+    public Option<T> Where(Func<T, bool> predicate) => _value is null || !predicate(_value) ? None() : this;
     
     /// <summary>
     /// Filters the current Option based on the provided predicate, returning the Option if the predicate is not satisfied.
@@ -91,15 +102,15 @@ public readonly struct Option<T>  : IEquatable<Option<T>> where T : class
     /// The current Option if it has a value and the value does not satisfy the predicate;
     /// otherwise, an empty Option.
     /// </returns>
-    public Option<T> WhereNot(Func<T, bool> predicate) => value is null || predicate(value) ? None() : this;
+    public Option<T> WhereNot(Func<T, bool> predicate) => _value is null || predicate(_value) ? None() : this;
     
     /// <inheritdoc />
-    public override int GetHashCode() => value?.GetHashCode() ?? 0;
+    public override int GetHashCode() => _value?.GetHashCode() ?? 0;
     /// <inheritdoc />
     public override bool Equals(object? obj) => obj is Option<T> other && Equals(other);
     
     /// <inheritdoc />
-    public bool Equals(Option<T> other) => value?.Equals(other.value) ?? other.value is null;
+    public bool Equals(Option<T> other) => _value?.Equals(other._value) ?? other._value is null;
     
     
     /// <summary>
