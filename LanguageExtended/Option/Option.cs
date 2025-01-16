@@ -72,6 +72,30 @@ public readonly struct Option<T>  : IEquatable<Option<T>> where T : class
         _value is null ? Option<TResult>.None() : map(_value);
     
     /// <summary>
+    /// Matches the value of the current Option to one of the provided functions.
+    /// </summary>
+    /// <param name="onSome">A function to call if the Option has a value.</param>
+    /// <param name="onNone">A function to call if the Option has no value.</param>
+    /// <returns>
+    /// The result of the <paramref name="onSome"/> function if the Option has a value;
+    /// otherwise, the result of the <paramref name="onNone"/> function.
+    /// </returns>
+    public T Match(Func<T, T> onSome, Func<T> onNone) => _value is null ? onNone() : onSome(_value);
+    
+    /// <summary>
+    /// Matches the value of the current Option to one of the provided actions.
+    /// </summary>
+    /// <param name="onSome">An action to call if the Option has a value.</param>
+    /// <param name="onNone">An action to call if the Option has no value.</param>
+    public void Match(Action<T> onSome, Action onNone)
+    {
+        if (_value is null)
+            onNone();
+        else
+            onSome(_value);
+    }
+    
+    /// <summary>
     /// Returns the value of the current Option if it has a value; otherwise, returns the specified default value.
     /// </summary>
     /// <param name="defaultValue">The default value to return if the Option has no value.</param>
