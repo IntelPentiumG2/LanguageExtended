@@ -70,4 +70,18 @@ public readonly struct Result<T, TError>
     /// <returns>A new result containing the transformed error if the current result is a failure; otherwise, a successful result with the same value.</returns>
     public Result<T, TResultError> MapError<TResultError>(Func<TError, TResultError> map) =>
         IsFailure ? Result<T, TResultError>.Failure(map(error!)) : Result<T, TResultError>.Success(value!);
+    
+    /// <summary>
+    /// Implicitly converts a value of type <typeparamref name="T"/> to a successful <see cref="Result{T, TError}"/>.
+    /// </summary>
+    /// <param name="value">The value to convert to a successful result.</param>
+    /// <returns>A successful result containing the specified value.</returns>
+    public static implicit operator Result<T, TError>(T value) => Success(value);
+
+    /// <summary>
+    /// Implicitly converts a value of type <typeparamref name="TError"/> to a failed <see cref="Result{T, TError}"/>.
+    /// </summary>
+    /// <param name="error">The error to convert to a failed result.</param>
+    /// <returns>A failed result containing the specified error.</returns>
+    public static implicit operator Result<T, TError>(TError error) => Failure(error);
 }
