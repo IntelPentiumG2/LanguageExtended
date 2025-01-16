@@ -1,9 +1,12 @@
 ﻿namespace LanguageExtended.Option;
 
-public struct Option<T>  : IEquatable<Option<T>> where T : class
+/// <summary>
+/// Represents an optional value that may or may not have a value.
+/// </summary>
+/// <typeparam name="T"> The type of the value of the Option </typeparam>
+public readonly struct Option<T>  : IEquatable<Option<T>> where T : class
 {
     private readonly T? value;
-    
 
     /// <summary>
     /// Constructor to create an Option with a value
@@ -16,15 +19,22 @@ public struct Option<T>  : IEquatable<Option<T>> where T : class
     /// </summary>
     /// <param name="value"> The value of the Option object</param>
     /// <returns>A new Option with the given value</returns>
-    public static Option<T> Some(T value)
-    {
-        return new Option<T>(value);
-    }
+    public static Option<T> Some(T value) => new(value);
     /// <summary>
     /// Factory method to create an Option without a value
     /// </summary>
     /// <returns>A new empty Option object</returns>
     public static Option<T> None() => new(null);
+    
+    /// <summary>
+    /// Indicates whether the current Option has a value.
+    /// </summary>
+    public bool IsSome => value is not null;
+    
+    /// <summary>
+    /// Indicates whether the current Option has no value.
+    /// </summary>
+    public bool IsNone => value is null;
     
     /// <summary>
     /// Maps the value of the current Option to a new Option using the provided mapping function.
@@ -71,7 +81,7 @@ public struct Option<T>  : IEquatable<Option<T>> where T : class
     /// The current Option if it has a value and the value satisfies the predicate;
     /// otherwise, an empty Option.
     /// </returns>
-    public Option<T> Where(Func<T, bool> predicate) => value is not null && predicate(value) ? this : None();
+    public Option<T> Where(Func<T, bool> predicate) => value is null || !predicate(value) ? None() : this;
     
     /// <summary>
     /// Filters the current Option based on the provided predicate, returning the Option if the predicate is not satisfied.
@@ -81,13 +91,29 @@ public struct Option<T>  : IEquatable<Option<T>> where T : class
     /// The current Option if it has a value and the value does not satisfy the predicate;
     /// otherwise, an empty Option.
     /// </returns>
-    public Option<T> WhereNot(Func<T, bool> predicate) => value is not null && !predicate(value) ? this : None();
+    public Option<T> WhereNot(Func<T, bool> predicate) => value is null || predicate(value) ? None() : this;
     
+    /// <inheritdoc />
     public override int GetHashCode() => value?.GetHashCode() ?? 0;
+    /// <inheritdoc />
     public override bool Equals(object? obj) => obj is Option<T> other && Equals(other);
     
+    /// <inheritdoc />
     public bool Equals(Option<T> other) => value?.Equals(other.value) ?? other.value is null;
     
+    
+    /// <summary>
+    /// Determines whether two specified Option objects have the same value.
+    /// </summary>
+    /// <param name="left">The first Option to compare.</param>
+    /// <param name="right">The second Option to compare.</param>
+    /// <returns>true if the value of left is the same as the value of right; otherwise, false.</returns>
     public static bool operator ==(Option<T> left, Option<T> right) => left.Equals(right);
+    /// <summary>
+    /// Determines whether two specified Option objects do not have the same value.
+    /// </summary>
+    /// <param name="left">The first Option to compare.</param>
+    /// <param name="right">The second Option to compare.</param>
+    /// <returns>true if the value of left is not the same as the value of right; otherwise, false.</returns>
     public static bool operator !=(Option<T> left, Option<T> right) => !left.Equals(right);
 }
