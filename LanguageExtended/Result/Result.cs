@@ -1,6 +1,73 @@
 ﻿namespace LanguageExtended.Result;
 
-public class Result
+/// <summary>
+/// Represents the result of an operation, which can be either a success or a failure.
+/// </summary>
+/// <typeparam name="T">The type of the value in case of success.</typeparam>
+/// <typeparam name="TError">The type of the error in case of failure.</typeparam>
+public readonly struct Result<T, TError>
 {
-    
+    private readonly T? value;
+    private readonly TError? error;
+
+    private Result(T? value, TError? error, bool isSuccess)
+    {
+        this.value = value;
+        this.error = error;
+        IsSuccess = isSuccess;
+    }
+
+    /// <summary>
+    /// Indicates whether the result is a success.
+    /// </summary>
+    public bool IsSuccess { get; }
+
+    /// <summary>
+    /// Indicates whether the result is a failure.
+    /// </summary>
+    public bool IsFailure => !IsSuccess;
+
+    /// <summary>
+    /// Gets the value of the result if it is a success.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Thrown if the result is a failure.</exception>
+    public T Value => IsSuccess ? value! : throw new InvalidOperationException("Result is a failure.");
+
+    /// <summary>
+    /// Gets the error of the result if it is a failure.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Thrown if the result is a success.</exception>
+    public TError Error => IsFailure ? error! : throw new InvalidOperationException("Result is a success.");
+
+    /// <summary>
+    /// Creates a successful result.
+    /// </summary>
+    /// <param name="value">The value of the result.</param>
+    /// <returns>A successful result.</returns>
+    public static Result<T, TError> Success(T value) => new(value, default, true);
+
+    /// <summary>
+    /// Creates a failed result.
+    /// </summary>
+    /// <param name="error">The error of the result.</param>
+    /// <returns>A failed result.</returns>
+    public static Result<T, TError> Failure(TError error) => new(default, error, false);
+
+    /// <summary>
+    /// Maps the value of a successful result to a new result using the provided mapping function.
+    /// </summary>
+    /// <typeparam name="TResult">The type of the value in the resulting result.</typeparam>
+    /// <param name="map">A function to transform the value of the current result.</param>
+    /// <returns>A new result containing the transformed value if the current result is a success; otherwise, a failed result with the same error.</returns>
+    public Result<TResult, TError> Map<TResult>(Func<T, TResult> map) =>
+        IsSuccess ? Result<TResult, TError>.Success(map(value!)) : Result<TResult, TError>.Failure(error!);
+
+    /// <summary>
+    /// Maps the error of a failed result to a new result using the provided mapping function.
+    /// </summary>
+    /// <typeparam name="TResultError">The type of the error in the resulting result.</typeparam>
+    /// <param name="map">A function to transform the error of the current result.</param>
+    /// <returns>A new result containing the transformed error if the current result is a failure; otherwise, a successful result with the same value.</returns>
+    public Result<T, TResultError> MapError<TResultError>(Func<TError, TResultError> map) =>
+        IsFailure ? Result<T, TResultError>.Failure(map(error!)) : Result<T, TResultError>.Success(value!);
 }
