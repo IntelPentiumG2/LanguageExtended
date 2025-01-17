@@ -5,7 +5,7 @@
 /// </summary>
 /// <typeparam name="T">The type of the value in case of success.</typeparam>
 /// <typeparam name="TError">The type of the error in case of failure.</typeparam>
-public readonly struct Result<T, TError>
+public readonly struct Result<T, TError> : IEquatable<Result<T, TError>>
 {
     private readonly T? _value;
     private readonly TError? _error;
@@ -38,6 +38,28 @@ public readonly struct Result<T, TError>
     /// </summary>
     /// <exception cref="InvalidOperationException">Thrown if the result is a success.</exception>
     public TError Error => IsFailure ? _error! : throw new InvalidOperationException("Result is a success.");
+    
+    /// <summary>
+    /// Tries to get the value of the result if it is a success.
+    /// </summary>
+    /// <param name="value">The value of the result.</param>
+    /// <returns>true if the result is a success; otherwise, false.</returns>
+    public bool TryGetValue(out T? value)
+    {
+        value = _value;
+        return IsSuccess;
+    }
+    
+    /// <summary>
+    /// Tries to get the error of the result if it is a failure.
+    /// </summary>
+    /// <param name="error">The error of the result.</param>
+    /// <returns>true if the result is a failure; otherwise, false.</returns>
+    public bool TryGetError(out TError? error)
+    {
+        error = _error;
+        return IsFailure;
+    }
 
     /// <summary>
     /// Creates a successful result.
@@ -61,6 +83,18 @@ public readonly struct Result<T, TError>
     /// <returns>A new result containing the transformed value if the current result is a success; otherwise, a failed result with the same error.</returns>
     public Result<TResult, TError> Map<TResult>(Func<T, TResult> map) =>
         IsSuccess ? Result<TResult, TError>.Success(map(_value!)) : Result<TResult, TError>.Failure(_error!);
+    
+    /// <summary>
+    /// Matches the result to one of the provided functions.
+    /// </summary>
+    /// <param name="onSuccess">A function to call if the result is a success.</param>
+    /// <param name="onFailure">A function to call if the result is a failure.</param>
+    /// <returns>
+    /// The result of the <paramref name="onSuccess"/> function if the result is a success;
+    /// otherwise, the result of the <paramref name="onFailure"/> function.
+    /// </returns>
+    public T Match(Func<T, T> onSuccess, Func<TError, T> onFailure) =>
+        IsSuccess ? onSuccess(_value!) : onFailure(_error!);
 
     /// <summary>
     /// Maps the error of a failed result to a new result using the provided mapping function.
@@ -84,4 +118,32 @@ public readonly struct Result<T, TError>
     /// <param name="error">The error to convert to a failed result.</param>
     /// <returns>A failed result containing the specified error.</returns>
     public static implicit operator Result<T, TError>(TError error) => Failure(error);
+
+
+    /// <inheritdoc />
+    public override int GetHashCode() => HashCode.Combine(_value, _error, IsSuccess);
+
+    /// <inheritdoc />
+    public override bool Equals(object? obj) => obj is Result<T, TError> other && Equals(other);
+
+    /// <inheritdoc />
+    public bool Equals(Result<T, TError> other) =>
+        EqualityComparer<T?>.Default.Equals(_value, other._value) &&
+        EqualityComparer<TError?>.Default.Equals(_error, other._error) &&
+        IsSuccess == other.IsSuccess;
+
+    /// <summary>
+    /// Determines whether two specified instances of <see cref="Result{T, TError}"/> are equal.
+    /// </summary>
+    /// <param name="left">The left value to check</param>
+    /// <param name="right">The value to compare to</param>
+    /// <returns>true if equal, otherwise false</returns>
+    public static bool operator ==(Result<T, TError> left, Result<T, TError> right) => left.Equals(right);
+    /// <summary>
+    /// Determines whether two specified instances of <see cref="Result{T, TError}"/> are not equal.
+    /// </summary>
+    /// <param name="left"> The left value to check </param>
+    /// <param name="right">The value to compare to</param>
+    /// <returns>true if unequal, otherwise false</returns>
+    public static bool operator !=(Result<T, TError> left, Result<T, TError> right) => !left.Equals(right);
 }
