@@ -43,6 +43,12 @@ public readonly struct Option<T>  : IEquatable<Option<T>> where T : class
     }
     
     /// <summary>
+    /// Gets the value of the Option if it has a value; otherwise, throws an InvalidOperationException.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Thrown if the Option has no value.</exception>
+    public T Value => _value ?? throw new InvalidOperationException("Option has no value");
+    
+    /// <summary>
     /// Indicates whether the current Option has no value.
     /// </summary>
     public bool IsNone => _value is null;
@@ -96,6 +102,30 @@ public readonly struct Option<T>  : IEquatable<Option<T>> where T : class
     }
     
     /// <summary>
+    /// Performs the specified action with the value if the option has a value.
+    /// </summary>
+    /// <param name="action">The action to perform with the value.</param>
+    /// <returns>The current Option instance.</returns>
+    public Option<T> IfSome(Action<T> action)
+    {
+        if (_value != null)
+            action(_value);
+        return this;
+    }
+    
+    /// <summary>
+    /// Performs the specified action if the option has no value.
+    /// </summary>
+    /// <param name="action">The action to perform.</param>
+    /// <returns>The current Option instance.</returns>
+    public Option<T> IfNone(Action action)
+    {
+        if (_value == null)
+            action();
+        return this;
+    }
+    
+    /// <summary>
     /// Returns the value of the current Option if it has a value; otherwise, returns the specified default value.
     /// </summary>
     /// <param name="defaultValue">The default value to return if the Option has no value.</param>
@@ -127,6 +157,17 @@ public readonly struct Option<T>  : IEquatable<Option<T>> where T : class
     /// otherwise, an empty Option.
     /// </returns>
     public Option<T> WhereNot(Func<T, bool> predicate) => _value is null || predicate(_value) ? None() : this;
+    
+    /// <summary>
+    /// Explicitly converts a nullable value of type T to an Option&lt;T&gt;.
+    /// </summary>
+    /// <param name="value">The nullable value to convert to an Option&lt;T&gt;.</param>
+    /// <returns>
+    /// An Option&lt;T&gt; representing the input value:
+    /// - If the input is null, returns None.
+    /// - If the input is not null, returns Some with the input value.
+    /// </returns>
+    public static explicit operator Option<T>(T? value) => value is null ? None() : Some(value);
     
     /// <inheritdoc />
     public override int GetHashCode() => _value?.GetHashCode() ?? 0;
