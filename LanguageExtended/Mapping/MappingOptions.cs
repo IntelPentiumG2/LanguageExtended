@@ -5,7 +5,7 @@ namespace LanguageExtended.Mapping;
 /// <summary>
 /// Provides configuration options for the mapping process.
 /// </summary>
-public class MappingOptions
+public record MappingOptions
 {
     /// <summary>
     /// Gets or sets a value indicating whether to ignore case when matching member names.
