@@ -12,8 +12,8 @@ public readonly struct Result<T, TError> : IEquatable<Result<T, TError>>
 
     private Result(T? value, TError? error, bool isSuccess)
     {
-        this._value = value;
-        this._error = error;
+        _value = value;
+        _error = error;
         IsSuccess = isSuccess;
     }
 
@@ -95,6 +95,19 @@ public readonly struct Result<T, TError> : IEquatable<Result<T, TError>>
     /// </returns>
     public T Match(Func<T, T> onSuccess, Func<TError, T> onFailure) =>
         IsSuccess ? onSuccess(_value!) : onFailure(_error!);
+    
+    /// <summary>
+    /// Executes one of the provided actions based on whether the result is a success or failure.
+    /// </summary>
+    /// <param name="onSuccess">The action to execute if the result is a success.</param>
+    /// <param name="onFailure">The action to execute if the result is a failure.</param>
+    public void Match(Action<T> onSuccess, Action<TError> onFailure)
+    {
+        if (IsSuccess)
+            onSuccess(Value);
+        else
+            onFailure(Error);
+    }
 
     /// <summary>
     /// Maps the error of a failed result to a new result using the provided mapping function.
