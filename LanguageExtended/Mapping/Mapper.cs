@@ -46,7 +46,6 @@ public  class Mapper
         // _memberMappingCache =
         //     new ConcurrentDictionary<(Type sourceType, Type targetType), Dictionary<string, MemberInfo>>();
         
-        
         _options = options;
         _memberAccessor = new MemberAccessor(options.IgnoreCase);
         _complexTypeMapper = new ComplexTypeMapper(this);
