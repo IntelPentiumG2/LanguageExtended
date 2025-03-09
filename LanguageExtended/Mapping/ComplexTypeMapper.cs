@@ -28,7 +28,7 @@ internal class ComplexTypeMapper
     /// <param name="targetMember">The target member to set the value to.</param>
     /// <param name="value">The value to map.</param>
     /// <returns>A Result indicating success or failure with an error message.</returns>
-    internal Result<bool, MappingError[]> HandleComplexType(object target, MemberInfo targetMember, object value)
+    internal Result<bool, MappingError> HandleComplexType(object target, MemberInfo targetMember, object value)
     {
         try
         {
@@ -44,15 +44,15 @@ internal class ComplexTypeMapper
                 // Set the new instance on the target object and check result
                 var setResult = MemberAccessor.SetMemberValue(target, targetMember, nestedTarget);
                 if (setResult.IsFailure)
-                    return Result<bool, MappingError[]>.Failure([setResult.Error]);
+                    return Result<bool, MappingError>.Failure(setResult.Error);
             }
             catch (Exception ex)
             {
-                return Result<bool, MappingError[]>.Failure([new MappingError(
+                return Result<bool, MappingError>.Failure(new MappingError(
                     $"Failed to create nested object: {ex.Message}",
                     MappingErrorType.ComplexTypeMappingError,
                     targetType.Name,
-                    ex)]);
+                    ex));
             }
 
             // Now map properties from source to the nested target
@@ -60,11 +60,11 @@ internal class ComplexTypeMapper
         }
         catch (Exception ex)
         {
-            return Result<bool, MappingError[]>.Failure([new MappingError(
+            return Result<bool, MappingError>.Failure(new MappingError(
                 $"Failed to map complex type: {ex.Message}",
                 MappingErrorType.ComplexTypeMappingError,
                 targetMember.Name,
-                ex)]);
+                ex));
         }
     }
     

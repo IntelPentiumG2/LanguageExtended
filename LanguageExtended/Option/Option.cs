@@ -12,7 +12,7 @@ public readonly struct Option<T>  : IEquatable<Option<T>> where T : class
     /// Constructor to create an Option with a value
     /// </summary>
     /// <param name="value"> The value of the Option object </param>
-    private Option(T? value) => this._value = value;
+    private Option(T? value) => _value = value;
     
     /// <summary>
     /// Factory method to create an Option with a value

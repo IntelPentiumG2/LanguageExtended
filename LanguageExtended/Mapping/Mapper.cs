@@ -59,29 +59,29 @@ public  class Mapper
     /// <typeparam name="TTarget">The type of the target object.</typeparam>
     /// <param name="source">The source object to map from.</param>
     /// <returns>A Result containing the mapped target object or an error message.</returns>
-    public  Result<TTarget, MappingError[]> Map<TTarget>(object source) where TTarget : new()
+    public  Result<TTarget, MappingError> Map<TTarget>(object source) where TTarget : new()
     {
         if (source == null)
-            return Result<TTarget, MappingError[]>.Failure([new MappingError(
+            return Result<TTarget, MappingError>.Failure(new MappingError(
                 "Source cannot be null", 
-                MappingErrorType.NullReference)]);
+                MappingErrorType.NullReference));
 
         try
         {
             TTarget target = new TTarget();
-            Result<bool, MappingError[]> mapResult = Map(source, target);
+            Result<bool, MappingError> mapResult = Map(source, target);
 
             return mapResult.IsSuccess
-                ? Result<TTarget, MappingError[]>.Success(target)
-                : Result<TTarget, MappingError[]>.Failure(mapResult.Error);
+                ? Result<TTarget, MappingError>.Success(target)
+                : Result<TTarget, MappingError>.Failure(mapResult.Error);
         }
         catch (Exception ex)
         {
-            return Result<TTarget, MappingError[]>.Failure([new MappingError(
+            return Result<TTarget, MappingError>.Failure(new MappingError(
                 "Mapping failed.", 
                 MappingErrorType.Other ,
                 "", 
-                ex)]);
+                ex));
         }
     }
 
@@ -91,23 +91,22 @@ public  class Mapper
     /// <param name="source">The source object to map from.</param>
     /// <param name="target">The target object to map to.</param>
     /// <returns>A Result indicating success or failure with an error message.</returns>
-    internal Result<bool, MappingError[]> Map(object source, object target)
+    internal Result<bool, MappingError> Map(object source, object target)
     {
         if (source == null)
-            return Result<bool, MappingError[]>.Failure([new MappingError(
+            return Result<bool, MappingError>.Failure(new MappingError(
                 "Source cannot be null",
-                MappingErrorType.NullReference)]);
+                MappingErrorType.NullReference));
 
         if (target == null)
-            return Result<bool, MappingError[]>.Failure([new MappingError(
+            return Result<bool, MappingError>.Failure(new MappingError(
                 "Target cannot be null",
-                MappingErrorType.NullReference)]);
+                MappingErrorType.NullReference));
 
         try
         {
             Type sourceType = source.GetType();
             Type targetType = target.GetType();
-            List<MappingError> criticalErrors = [];
 
             foreach (MemberInfo targetMember in _memberAccessor.GetTargetMembers(targetType))
             {
@@ -123,7 +122,7 @@ public  class Mapper
                             // Only treat enum conversion errors as critical
                             if (result is { IsFailure: true, Error.ErrorType: MappingErrorType.EnumConversionError })
                             {
-                                criticalErrors.Add(result.Error);
+                                throw new MappingException(result.Error);
                             }
                         },
                         () =>
@@ -133,7 +132,7 @@ public  class Mapper
 
                             Result<bool, MappingError> result = ComplexTypeMapper.CreateAndSetComplexType(target, targetMember);
                             if (result.IsFailure)
-                                criticalErrors.Add(new MappingError(
+                                throw new MappingException(new MappingError(
                                     $"Failed to initialize '{targetMember.Name}': {result.Error}",
                                     MappingErrorType.ComplexTypeMappingError,
                                     targetMember.Name));
@@ -142,17 +141,19 @@ public  class Mapper
                 });
             }
 
-            return criticalErrors.Count != 0
-                ? Result<bool, MappingError[]>.Failure([.. criticalErrors])
-                : Result<bool, MappingError[]>.Success(true);
+            return Result<bool, MappingError>.Success(true);
+        }
+        catch (MappingException ex)
+        {
+            return Result<bool, MappingError>.Failure(ex.MappingError);
         }
         catch (Exception ex)
         {
-            return Result<bool, MappingError[]>.Failure([new MappingError(
+            return Result<bool, MappingError>.Failure(new MappingError(
                 $"Mapping failed: {ex.Message}",
                 MappingErrorType.GeneralMappingError,
                 "",
-                ex)]);
+                ex));
         }
     }
     
@@ -173,12 +174,11 @@ public  class Mapper
         {
             // return _complexTypeMapper.HandleComplexType(target, targetMember, value);
             
-            Result<bool, MappingError[]> result = _complexTypeMapper.HandleComplexType(target, targetMember, value);
+            Result<bool, MappingError> result = _complexTypeMapper.HandleComplexType(target, targetMember, value);
             
-            if (result.IsSuccess)
-                return Result<bool, MappingError>.Success(true);
-            
-            return Result<bool, MappingError>.Failure(result.Error[0]);
+            return result.IsSuccess 
+                ? Result<bool, MappingError>.Success(true) 
+                : Result<bool, MappingError>.Failure(result.Error);
         }
 
         if (TypeHelper.IsCollection(targetMemberType) && TypeHelper.IsCollection(valueType))

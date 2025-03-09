@@ -78,8 +78,7 @@ public class MapperTests
         var result = mapper.Map<EnumDestination>(source);
 
         Assert.False(result.IsSuccess);
-        Assert.Single(result.Error);
-        Assert.Equal(MappingErrorType.EnumConversionError, result.Error[0].ErrorType);
+        Assert.Equal(MappingErrorType.EnumConversionError, result.Error.ErrorType);
     }
     
     [Fact]
@@ -183,7 +182,7 @@ public class MapperTests
         var result = mapper.Map<EnumDestination>(source);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal(MappingErrorType.EnumConversionError, result.Error[0].ErrorType);
+        Assert.Equal(MappingErrorType.EnumConversionError, result.Error.ErrorType);
     }
 
     [Fact]
