@@ -135,8 +135,8 @@ internal class CollectionMapper
             IDictionary targetDictionary = dictionaryResult.Value;
             foreach (DictionaryEntry entry in sourceDictionary)
             {
-                var keyConversionResult = TypeConverter.TryConvertValue(entry.Key, keyType);
-                var valueConversionResult = TypeConverter.TryConvertValue(entry.Value, valueType);
+                Result<object, string> keyConversionResult = TypeConverter.TryConvertValue(entry.Key, keyType);
+                Result<object, string> valueConversionResult = TypeConverter.TryConvertValue(entry.Value, valueType);
 
                 if (keyConversionResult.IsSuccess && valueConversionResult.IsSuccess)
                 {

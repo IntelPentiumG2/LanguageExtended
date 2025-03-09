@@ -61,20 +61,20 @@ public  class Mapper
     public  Result<TTarget, MappingError> Map<TTarget>(object source) where TTarget : new()
     {
         if (source == null)
-            return Result<TTarget, MappingError>.Failure(new MappingError("Source cannot be null"));
+            return Result<TTarget, MappingError>.Failure(new MappingError("Source cannot be null", MappingErrorType.NullReference));
 
         try
         {
-            var target = new TTarget();
-            var mapResult = Map(source, target);
+            TTarget target = new TTarget();
+            Result<bool, string> mapResult = Map(source, target);
 
             return mapResult.IsSuccess
                 ? Result<TTarget, MappingError>.Success(target)
-                : Result<TTarget, MappingError>.Failure(new MappingError(mapResult.Error));
+                : Result<TTarget, MappingError>.Failure(new MappingError(mapResult.Error, MappingErrorType.GeneralMappingError));
         }
         catch (Exception ex)
         {
-            return Result<TTarget, MappingError>.Failure(new MappingError("Mapping failed.", "", ex));
+            return Result<TTarget, MappingError>.Failure(new MappingError("Mapping failed.", MappingErrorType.Other ,"", ex));
         }
     }
 
