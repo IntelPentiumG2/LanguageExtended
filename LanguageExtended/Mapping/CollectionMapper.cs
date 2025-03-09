@@ -32,7 +32,7 @@ internal class CollectionMapper
     /// <param name="targetMember">The target member to set the value to.</param>
     /// <param name="value">The value to map.</param>
     /// <returns>A Result indicating success or failure with an error message.</returns>
-    internal Result<bool, string> HandleCollection(object target, MemberInfo targetMember, object value)
+    internal Result<bool, MappingError> HandleCollection(object target, MemberInfo targetMember, object value)
     {
         try
         {
@@ -89,9 +89,9 @@ internal class CollectionMapper
                 return MemberAccessor.SetMemberValue(target, targetMember, array);
             }
 
-            var collectionResult = TryCreateCollection(collectionType, elementType);
+            Result<IList, MappingError> collectionResult = TryCreateCollection(collectionType, elementType);
             if (collectionResult.IsFailure)
-                return Result<bool, string>.Failure(collectionResult.Error);
+                return Result<bool, MappingError>.Failure(collectionResult.Error);
 
             IList targetCollection = collectionResult.Value;
             foreach (var item in mappedItems)
@@ -102,7 +102,11 @@ internal class CollectionMapper
         }
         catch (Exception ex)
         {
-            return Result<bool, string>.Failure($"Failed to map collection: {ex.Message}");
+            return Result<bool, MappingError>.Failure(new MappingError(
+                $"Failed to map collection: {ex.Message}",
+                MappingErrorType.CollectionMappingError,
+                targetMember.Name,
+                ex));
         }
     }
         
@@ -118,7 +122,7 @@ internal class CollectionMapper
     /// creates an appropriate target dictionary instance, converts source dictionary entries
     /// to match the target types, and sets the resulting dictionary on the target member.
     /// </remarks>
-    private static Result<bool, string> HandleDictionary(object target, MemberInfo targetMember, object value)
+    private static Result<bool, MappingError> HandleDictionary(object target, MemberInfo targetMember, object value)
     {
         try
         {
@@ -130,13 +134,13 @@ internal class CollectionMapper
 
             var dictionaryResult = TryCreateDictionary(collectionType, keyType, valueType);
             if (dictionaryResult.IsFailure)
-                return Result<bool, string>.Failure(dictionaryResult.Error);
+                return Result<bool, MappingError>.Failure(dictionaryResult.Error);
 
             IDictionary targetDictionary = dictionaryResult.Value;
             foreach (DictionaryEntry entry in sourceDictionary)
             {
-                Result<object, string> keyConversionResult = TypeConverter.TryConvertValue(entry.Key, keyType);
-                Result<object, string> valueConversionResult = TypeConverter.TryConvertValue(entry.Value, valueType);
+                Result<object, MappingError> keyConversionResult = TypeConverter.TryConvertValue(entry.Key, keyType);
+                Result<object, MappingError> valueConversionResult = TypeConverter.TryConvertValue(entry.Value, valueType);
 
                 if (keyConversionResult.IsSuccess && valueConversionResult.IsSuccess)
                 {
@@ -148,7 +152,11 @@ internal class CollectionMapper
         }
         catch (Exception ex)
         {
-            return Result<bool, string>.Failure($"Failed to map dictionary: {ex.Message}");
+            return Result<bool, MappingError>.Failure(new MappingError(
+                $"Failed to map dictionary: {ex.Message}",
+                MappingErrorType.CollectionMappingError,
+                targetMember.Name,
+                ex));
         }
     }
             
@@ -159,7 +167,7 @@ internal class CollectionMapper
     /// <param name="keyType">The type of keys in the dictionary.</param>
     /// <param name="valueType">The type of values in the dictionary.</param>
     /// <returns>A Result containing the created dictionary or an error message.</returns>
-    private static Result<IDictionary, string> TryCreateDictionary(Type dictionaryType, Type keyType, Type valueType)
+    private static Result<IDictionary, MappingError> TryCreateDictionary(Type dictionaryType, Type keyType, Type valueType)
     {
         try
         {
@@ -168,23 +176,36 @@ internal class CollectionMapper
             if (dictionaryType.IsInterface && dictionaryType.IsAssignableFrom(dictType))
             {
                 return Activator.CreateInstance(dictType) is IDictionary dict
-                    ? Result<IDictionary, string>.Success(dict)
-                    : Result<IDictionary, string>.Failure($"Failed to create dictionary of type {dictionaryType.Name}");
+                    ? Result<IDictionary, MappingError>.Success(dict)
+                    : Result<IDictionary, MappingError>.Failure(new MappingError(
+                        $"Failed to create dictionary of type {dictionaryType.Name}",
+                        MappingErrorType.DictionaryCreationError,
+                        dictionaryType.Name));
             }
 
             if (dictionaryType is { IsClass: true, IsAbstract: false } 
                 && dictionaryType.GetConstructor(Type.EmptyTypes) != null)
             {
                 return Activator.CreateInstance(dictionaryType) is IDictionary dict
-                    ? Result<IDictionary, string>.Success(dict)
-                    : Result<IDictionary, string>.Failure($"Failed to create dictionary of type {dictionaryType.Name}");
+                    ? Result<IDictionary, MappingError>.Success(dict)
+                    : Result<IDictionary, MappingError>.Failure(new MappingError(
+                        $"Failed to create dictionary of type {dictionaryType.Name}",
+                        MappingErrorType.DictionaryCreationError,
+                        dictionaryType.Name));
             }
 
-            return Result<IDictionary, string>.Failure($"Failed to create dictionary of type {dictionaryType.Name}");
+            return Result<IDictionary, MappingError>.Failure(new MappingError(
+                $"Failed to create dictionary of type {dictionaryType.Name}",
+                MappingErrorType.DictionaryCreationError,
+                dictionaryType.Name));
         }
         catch (Exception ex)
         {
-            return Result<IDictionary, string>.Failure($"Failed to create dictionary of type {dictionaryType.Name}: {ex.Message}");
+            return Result<IDictionary, MappingError>.Failure(new MappingError(
+                $"Failed to create dictionary of type {dictionaryType.Name}: {ex.Message}",
+                MappingErrorType.DictionaryCreationError,
+                dictionaryType.Name,
+                ex));
         }
     }
 
@@ -194,13 +215,13 @@ internal class CollectionMapper
     /// <param name="collectionType">The type of the collection to create.</param>
     /// <param name="elementType">The type of the elements in the collection.</param>
     /// <returns>A Result containing the created collection or an error message.</returns>
-    private static Result<IList, string> TryCreateCollection(Type collectionType, Type elementType)
+    private static Result<IList, MappingError> TryCreateCollection(Type collectionType, Type elementType)
     {
         try
         {
             if (collectionType.IsArray)
             {
-                return Result<IList, string>.Success(new ArrayList());
+                return Result<IList, MappingError>.Success(new ArrayList());
             }
 
             Type listType = typeof(List<>).MakeGenericType(elementType);
@@ -210,8 +231,11 @@ internal class CollectionMapper
             {
                 object? instance = Activator.CreateInstance(listType);
                 return instance is IList list
-                    ? Result<IList, string>.Success(list)
-                    : Result<IList, string>.Failure($"Failed to create collection of type {collectionType.Name}");
+                    ? Result<IList, MappingError>.Success(list)
+                    : Result<IList, MappingError>.Failure(new MappingError(
+                        $"Failed to create collection of type {collectionType.Name}",
+                        MappingErrorType.CollectionCreationError,
+                        collectionType.Name));
             }
 
             // For concrete types with parameterless constructors
@@ -219,18 +243,28 @@ internal class CollectionMapper
                 collectionType.GetConstructor(Type.EmptyTypes) != null)
             {
                 return Activator.CreateInstance(collectionType) is IList list
-                    ? Result<IList, string>.Success(list)
-                    : Result<IList, string>.Failure($"Failed to create collection of type {collectionType.Name}");
+                    ? Result<IList, MappingError>.Success(list)
+                    : Result<IList, MappingError>.Failure(new MappingError(
+                        $"Failed to create collection of type {collectionType.Name}",
+                        MappingErrorType.CollectionCreationError,
+                        collectionType.Name));
             }
 
             // Fallback to creating a List<T>
             return Activator.CreateInstance(listType) is IList iList
-                ? Result<IList, string>.Success(iList)
-                : Result<IList, string>.Failure($"Failed to create collection of type {collectionType.Name}");
+                ? Result<IList, MappingError>.Success(iList)
+                : Result<IList, MappingError>.Failure(new MappingError(
+                    $"Failed to create collection of type {collectionType.Name}",
+                    MappingErrorType.CollectionCreationError,
+                    collectionType.Name));
         }
         catch (Exception ex)
         {
-            return Result<IList, string>.Failure($"Failed to create collection of type {collectionType.Name}: {ex.Message}");
+            return Result<IList, MappingError>.Failure(new MappingError(
+                $"Failed to create collection of type {collectionType.Name}: {ex.Message}",
+                MappingErrorType.CollectionCreationError,
+                collectionType.Name,
+                ex));
         }
     }
 }

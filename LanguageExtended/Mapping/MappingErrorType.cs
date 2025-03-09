@@ -35,11 +35,27 @@ public enum MappingErrorType
     /// </summary>
     GeneralMappingError,
     /// <summary>
+    /// The error occurred because of an invalid member type. Only properties and fields are supported.
+    /// </summary>
+    InvalidMemberType,
+    /// <summary>
     /// The error occurred during an enum conversion.
     /// </summary>
     EnumConversionError,
     /// <summary>
     /// The error occurred because of an unknown reason.
     /// </summary>
-    Other
+    Other,
+    /// <summary>
+    /// Error occurred when setting a member value.
+    /// </summary>
+    SetMemberValueError,
+    /// <summary>
+    /// Error occurred when creating a new Dictionary.
+    /// </summary>
+    DictionaryCreationError,
+    /// <summary>
+    /// Error occurred when creating a new Collection.
+    /// </summary>
+    CollectionCreationError
 }

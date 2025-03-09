@@ -34,14 +34,14 @@ internal class MemberAccessor
     internal IEnumerable<MemberInfo> GetTargetMembers(Type targetType)
     {
         // Get writable properties
-        foreach (var prop in _properties.GetOrAdd(targetType, targetType.GetProperties(BindingFlags.Public | BindingFlags.Instance)))
+        foreach (PropertyInfo prop in _properties.GetOrAdd(targetType, targetType.GetProperties(BindingFlags.Public | BindingFlags.Instance)))
         {
             if (prop.CanWrite)
                 yield return prop;
         }
 
         // Get non-readonly fields
-        foreach (var field in _fields.GetOrAdd(targetType, targetType.GetFields(BindingFlags.Public | BindingFlags.Instance)))
+        foreach (FieldInfo field in _fields.GetOrAdd(targetType, targetType.GetFields(BindingFlags.Public | BindingFlags.Instance)))
         {
             if (!field.IsInitOnly)
                 yield return field;
@@ -112,7 +112,9 @@ internal class MemberAccessor
                 _ => throw new ArgumentException("Member must be a property or field", nameof(member))
             };
 
-            return value != null ? Option<object>.Some(value) : Option<object>.None();
+            return value != null 
+                ? Option<object>.Some(value) 
+                : Option<object>.None();
         }
         catch
         {
@@ -126,7 +128,7 @@ internal class MemberAccessor
     /// <param name="target">The target object to set the value on.</param>
     /// <param name="member">The member to set the value to.</param>
     /// <param name="value">The value to set.</param>
-    internal static Result<bool, string> SetMemberValue(object target, MemberInfo member, object value)
+    internal static Result<bool, MappingError> SetMemberValue(object target, MemberInfo member, object value)
     {
         try
         {
@@ -140,13 +142,20 @@ internal class MemberAccessor
                     ((FieldInfo)member).SetValue(target, value);
                     break;
                 default:
-                    return Result<bool, string>.Failure($"Member {member.Name} must be a property or field");
+                    return Result<bool, MappingError>.Failure(new MappingError(
+                        $"Member {member.Name} must be a property or field",
+                        MappingErrorType.InvalidMemberType,
+                        member.Name));
             }
-            return Result<bool, string>.Success(true);
+            return Result<bool, MappingError>.Success(true);
         }
         catch (Exception ex)
         {
-            return Result<bool, string>.Failure($"Failed to set value for {member.Name}: {ex.Message}");
+            return Result<bool, MappingError>.Failure(new MappingError(
+                $"Failed to set value for {member.Name}: {ex.Message}",
+                MappingErrorType.SetMemberValueError,
+                member.Name,
+                ex));
         }
     }
 }

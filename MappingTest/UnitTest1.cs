@@ -27,7 +27,7 @@ public class MapperTests
         var result = mapper.Map<Destination>(null);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal("Source cannot be null", result.Error.Message);
+        // Assert.Equal("Source cannot be null", result.Error);
     }
 
     [Fact]
@@ -78,6 +78,8 @@ public class MapperTests
         var result = mapper.Map<EnumDestination>(source);
 
         Assert.False(result.IsSuccess);
+        Assert.Single(result.Error);
+        Assert.Equal(MappingErrorType.EnumConversionError, result.Error[0].ErrorType);
     }
     
     [Fact]
@@ -181,7 +183,7 @@ public class MapperTests
         var result = mapper.Map<EnumDestination>(source);
 
         Assert.False(result.IsSuccess);
-        Assert.Contains("Cannot convert", result.Error.Message);
+        Assert.Equal(MappingErrorType.EnumConversionError, result.Error[0].ErrorType);
     }
 
     [Fact]

@@ -2,6 +2,7 @@
 // ReSharper disable UnusedType.Global
 using System.Reflection;
 using LanguageExtended.Result;
+using LanguageExtended.Option;
 
 namespace LanguageExtended.Mapping;
 
@@ -58,23 +59,29 @@ public  class Mapper
     /// <typeparam name="TTarget">The type of the target object.</typeparam>
     /// <param name="source">The source object to map from.</param>
     /// <returns>A Result containing the mapped target object or an error message.</returns>
-    public  Result<TTarget, MappingError> Map<TTarget>(object source) where TTarget : new()
+    public  Result<TTarget, MappingError[]> Map<TTarget>(object source) where TTarget : new()
     {
         if (source == null)
-            return Result<TTarget, MappingError>.Failure(new MappingError("Source cannot be null", MappingErrorType.NullReference));
+            return Result<TTarget, MappingError[]>.Failure([new MappingError(
+                "Source cannot be null", 
+                MappingErrorType.NullReference)]);
 
         try
         {
             TTarget target = new TTarget();
-            Result<bool, string> mapResult = Map(source, target);
+            Result<bool, MappingError[]> mapResult = Map(source, target);
 
             return mapResult.IsSuccess
-                ? Result<TTarget, MappingError>.Success(target)
-                : Result<TTarget, MappingError>.Failure(new MappingError(mapResult.Error, MappingErrorType.GeneralMappingError));
+                ? Result<TTarget, MappingError[]>.Success(target)
+                : Result<TTarget, MappingError[]>.Failure(mapResult.Error);
         }
         catch (Exception ex)
         {
-            return Result<TTarget, MappingError>.Failure(new MappingError("Mapping failed.", MappingErrorType.Other ,"", ex));
+            return Result<TTarget, MappingError[]>.Failure([new MappingError(
+                "Mapping failed.", 
+                MappingErrorType.Other ,
+                "", 
+                ex)]);
         }
     }
 
@@ -84,37 +91,39 @@ public  class Mapper
     /// <param name="source">The source object to map from.</param>
     /// <param name="target">The target object to map to.</param>
     /// <returns>A Result indicating success or failure with an error message.</returns>
-    internal Result<bool, string> Map(object source, object target)
+    internal Result<bool, MappingError[]> Map(object source, object target)
     {
         if (source == null)
-            return Result<bool, string>.Failure("Source cannot be null");
+            return Result<bool, MappingError[]>.Failure([new MappingError(
+                "Source cannot be null",
+                MappingErrorType.NullReference)]);
 
         if (target == null)
-            return Result<bool, string>.Failure("Target cannot be null");
+            return Result<bool, MappingError[]>.Failure([new MappingError(
+                "Target cannot be null",
+                MappingErrorType.NullReference)]);
 
         try
         {
             Type sourceType = source.GetType();
             Type targetType = target.GetType();
-            List<string> criticalErrors = [];
+            List<MappingError> criticalErrors = [];
 
-            foreach (var targetMember in _memberAccessor.GetTargetMembers(targetType))
+            foreach (MemberInfo targetMember in _memberAccessor.GetTargetMembers(targetType))
             {
-                var sourceMemberOption = _memberAccessor.FindSourceMember(sourceType, targetMember.Name);
+                Option<MemberInfo> sourceMemberOption = _memberAccessor.FindSourceMember(sourceType, targetMember.Name);
 
                 sourceMemberOption.IfSome(sourceMember =>
                 {
-                    var valueOption = MemberAccessor.GetMemberValue(source, sourceMember);
+                    Option<object> valueOption = MemberAccessor.GetMemberValue(source, sourceMember);
                     valueOption.Match(
                         value =>
                         {
                             var result = SetMappedValue(target, targetMember, value);
                             // Only treat enum conversion errors as critical
-                            if (result.IsFailure &&
-                                (result.Error.Contains("enum") ||
-                                 !result.Error.StartsWith("Conversion error")))
+                            if (result is { IsFailure: true, Error.ErrorType: MappingErrorType.EnumConversionError })
                             {
-                                criticalErrors.Add($"Failed to map '{targetMember.Name}': {result.Error}");
+                                criticalErrors.Add(result.Error);
                             }
                         },
                         () =>
@@ -122,21 +131,28 @@ public  class Mapper
                             if (!TypeHelper.IsComplexType(MemberAccessor.GetMemberType(targetMember)))
                                 return;
 
-                            var result = ComplexTypeMapper.CreateAndSetComplexType(target, targetMember);
+                            Result<bool, MappingError> result = ComplexTypeMapper.CreateAndSetComplexType(target, targetMember);
                             if (result.IsFailure)
-                                criticalErrors.Add($"Failed to initialize '{targetMember.Name}': {result.Error}");
+                                criticalErrors.Add(new MappingError(
+                                    $"Failed to initialize '{targetMember.Name}': {result.Error}",
+                                    MappingErrorType.ComplexTypeMappingError,
+                                    targetMember.Name));
                         }
                     );
                 });
             }
 
             return criticalErrors.Count != 0
-                ? Result<bool, string>.Failure(string.Join("; ", criticalErrors))
-                : Result<bool, string>.Success(true);
+                ? Result<bool, MappingError[]>.Failure([.. criticalErrors])
+                : Result<bool, MappingError[]>.Success(true);
         }
         catch (Exception ex)
         {
-            return Result<bool, string>.Failure($"Mapping failed: {ex.Message}");
+            return Result<bool, MappingError[]>.Failure([new MappingError(
+                $"Mapping failed: {ex.Message}",
+                MappingErrorType.GeneralMappingError,
+                "",
+                ex)]);
         }
     }
     
@@ -148,14 +164,21 @@ public  class Mapper
     /// <param name="target">The target object to set the value on.</param>
     /// <param name="targetMember">The target member to set the value to.</param>
     /// <param name="value">The value to set.</param>
-    private Result<bool, string> SetMappedValue(object target, MemberInfo targetMember, object value)
+    private Result<bool, MappingError> SetMappedValue(object target, MemberInfo targetMember, object value)
     {
         Type targetMemberType = MemberAccessor.GetMemberType(targetMember);
         Type valueType = value.GetType();
 
         if (TypeHelper.IsComplexType(targetMemberType) && TypeHelper.IsComplexType(valueType))
         {
-            return _complexTypeMapper.HandleComplexType(target, targetMember, value);
+            // return _complexTypeMapper.HandleComplexType(target, targetMember, value);
+            
+            Result<bool, MappingError[]> result = _complexTypeMapper.HandleComplexType(target, targetMember, value);
+            
+            if (result.IsSuccess)
+                return Result<bool, MappingError>.Success(true);
+            
+            return Result<bool, MappingError>.Failure(result.Error[0]);
         }
 
         if (TypeHelper.IsCollection(targetMemberType) && TypeHelper.IsCollection(valueType))
@@ -163,7 +186,7 @@ public  class Mapper
             return _collectionMapper.HandleCollection(target, targetMember, value);
         }
 
-        var conversionResult = TypeConverter.TryConvertValue(value, targetMemberType);
+        Result<object, MappingError> conversionResult = TypeConverter.TryConvertValue(value, targetMemberType);
 
         if (conversionResult.IsSuccess) 
             return MemberAccessor.SetMemberValue(target, targetMember, conversionResult.Value);
@@ -172,10 +195,10 @@ public  class Mapper
         if (targetMemberType.IsEnum && value is string)
         {
             // Enum conversion failures should cause mapping failure
-            return Result<bool, string>.Failure(conversionResult.Error);
+            return Result<bool, MappingError>.Failure(conversionResult.Error);
         }
         
         // Ignore other conversion errors
-        return Result<bool, string>.Success(true);
+        return Result<bool, MappingError>.Success(true);
     }
 }
