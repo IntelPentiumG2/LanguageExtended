@@ -57,20 +57,20 @@ internal class MemberAccessor
     internal Option<MemberInfo> FindSourceMember(Type sourceType, string memberName)
     {
         // Get cached properties safely
-        var props = _properties.GetOrAdd(sourceType, t => 
+        PropertyInfo[] props = _properties.GetOrAdd(sourceType, t => 
             t.GetProperties(BindingFlags.Public | BindingFlags.Instance));
         
-        var prop = props.FirstOrDefault(p => p.Name.Equals(memberName, 
+        PropertyInfo? prop = props.FirstOrDefault(p => p.Name.Equals(memberName, 
             _ignoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal));
         
         if (prop != null && prop.CanRead) 
             return Option<MemberInfo>.Some(prop);
 
         // Get cached fields safely
-        var fields = _fields.GetOrAdd(sourceType, t => 
+        FieldInfo[] fields = _fields.GetOrAdd(sourceType, t => 
             t.GetFields(BindingFlags.Public | BindingFlags.Instance));
         
-        var field = fields.FirstOrDefault(f => f.Name.Equals(memberName,
+        FieldInfo? field = fields.FirstOrDefault(f => f.Name.Equals(memberName,
             _ignoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal));
         
         return field != null 

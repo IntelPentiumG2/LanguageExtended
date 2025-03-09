@@ -105,12 +105,9 @@ public  class Mapper
 
         try
         {
-            Type sourceType = source.GetType();
-            Type targetType = target.GetType();
-
-            foreach (MemberInfo targetMember in _memberAccessor.GetTargetMembers(targetType))
+            foreach (MemberInfo targetMember in _memberAccessor.GetTargetMembers(target.GetType()))
             {
-                Option<MemberInfo> sourceMemberOption = _memberAccessor.FindSourceMember(sourceType, targetMember.Name);
+                Option<MemberInfo> sourceMemberOption = _memberAccessor.FindSourceMember(source.GetType(), targetMember.Name);
 
                 sourceMemberOption.IfSome(sourceMember =>
                 {
@@ -118,9 +115,9 @@ public  class Mapper
                     valueOption.Match(
                         value =>
                         {
-                            var result = SetMappedValue(target, targetMember, value);
-                            // Only treat enum conversion errors as critical
-                            if (result is { IsFailure: true, Error.ErrorType: MappingErrorType.EnumConversionError })
+                            Result<bool, MappingError> result = SetMappedValue(target, targetMember, value);
+
+                            if (result.IsFailure)
                             {
                                 throw new MappingException(result.Error);
                             }
