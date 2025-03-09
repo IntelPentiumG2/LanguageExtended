@@ -35,6 +35,10 @@ public enum MappingErrorType
     /// </summary>
     GeneralMappingError,
     /// <summary>
+    /// The error occurred during an enum conversion.
+    /// </summary>
+    EnumConversionError,
+    /// <summary>
     /// The error occurred because of an unknown reason.
     /// </summary>
     Other

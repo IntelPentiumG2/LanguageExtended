@@ -1,4 +1,6 @@
 ﻿using LanguageExtended.Mapping;
+// ReSharper disable CollectionNeverUpdated.Local
+// ReSharper disable UnusedAutoPropertyAccessor.Local
 
 namespace MappingTest;
 

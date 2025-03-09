@@ -16,6 +16,11 @@ public record MappingOptions
     /// Gets or sets a value indicating whether to ignore missing members in the target type.
     /// </summary>
     public bool IgnoreMissingMembers { get; set; } = true;
+    
+    /// <summary>
+    /// Gets or sets a value indicating whether to ignore failed mappings.
+    /// </summary>
+    public bool LenientMappingErrors { get; set; } = false;
 
     /// <summary>
     /// Gets or sets a value indicating whether to throw an exception on mapping failure.
