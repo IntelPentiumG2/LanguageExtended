@@ -119,13 +119,30 @@ public class MapperTests
     public void Map_MismatchedPropertyTypes_IgnoresMismatchedProperties()
     {
         var source = new { Id = "not-an-int", Name = "Test" };
-        var mapper = new Mapper();
+        var mapper = new Mapper(new MappingOptions
+        {
+            LenientMappingErrors = true
+        });
 
         var result = mapper.Map<Destination>(source);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(0, result.Value.Id); // Default value for int
         Assert.Equal("Test", result.Value.Name);
+    }
+    
+    [Fact]
+    public void Map_MismatchedPropertyTypes_FailesOnMismatchedProperties()
+    {
+        var source = new { Id = "not-an-int", Name = "Test" };
+        var mapper = new Mapper(new MappingOptions
+        {
+            LenientMappingErrors = false
+        });
+
+        var result = mapper.Map<Destination>(source);
+
+        Assert.True(result.IsFailure);
     }
 
     [Fact]

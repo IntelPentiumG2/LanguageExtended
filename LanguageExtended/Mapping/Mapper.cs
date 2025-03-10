@@ -168,34 +168,24 @@ public  class Mapper
         Type valueType = value.GetType();
 
         if (TypeHelper.IsComplexType(targetMemberType) && TypeHelper.IsComplexType(valueType))
-        {
-            // return _complexTypeMapper.HandleComplexType(target, targetMember, value);
-            
-            Result<bool, MappingError> result = _complexTypeMapper.HandleComplexType(target, targetMember, value);
-            
-            return result.IsSuccess 
-                ? Result<bool, MappingError>.Success(true) 
-                : Result<bool, MappingError>.Failure(result.Error);
-        }
+            return _complexTypeMapper.HandleComplexType(target, targetMember, value);
 
         if (TypeHelper.IsCollection(targetMemberType) && TypeHelper.IsCollection(valueType))
-        {
             return _collectionMapper.HandleCollection(target, targetMember, value);
-        }
 
         Result<object, MappingError> conversionResult = TypeConverter.TryConvertValue(value, targetMemberType);
 
         if (conversionResult.IsSuccess) 
             return MemberAccessor.SetMemberValue(target, targetMember, conversionResult.Value);
-        
+
         // Special handling for enum conversion errors
-        if (targetMemberType.IsEnum && value is string)
-        {
-            // Enum conversion failures should cause mapping failure
-            return Result<bool, MappingError>.Failure(conversionResult.Error);
-        }
-        
-        // Ignore other conversion errors
-        return Result<bool, MappingError>.Success(true);
+        // if (targetMemberType.IsEnum && value is string)
+        // {
+        //     // Enum conversion failures should cause mapping failure
+        //     return Result<bool, MappingError>.Failure(conversionResult.Error);
+        // }
+        return _options.LenientMappingErrors 
+            ? Result<bool, MappingError>.Success(true) 
+            : Result<bool, MappingError>.Failure(conversionResult.Error);
     }
 }
