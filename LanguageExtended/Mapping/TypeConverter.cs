@@ -21,27 +21,15 @@ internal class TypeConverter(bool ignoreCase = false)
             if (targetType.IsEnum 
                 && value is string strValue)
             {
-                try
+                if (Enum.TryParse(targetType, strValue, ignoreCase, out object? parsedEnum))
                 {
-                    return Result<object, MappingError>.Success(Enum.Parse(targetType, strValue, ignoreCase));
+                    return Result<object, MappingError>.Success(parsedEnum);
                 }
-                catch (Exception ex)
-                {
-                    return Result<object, MappingError>.Failure(new MappingError(
+                
+                return Result<object, MappingError>.Failure(new MappingError(
                         $"Cannot convert '{strValue}' to enum {targetType.Name}",
                         MappingErrorType.EnumConversionError,
-                        targetType.Name,
-                        ex));
-                }
-            }
-            
-            if (value.GetType() == targetType) 
-                return Result<object, MappingError>.Success(value);
-
-            if (targetType == typeof(string)
-                && value is IConvertible convertibleValue)
-            {
-                return Result<object, MappingError>.Success(convertibleValue.ToString(CultureInfo.InvariantCulture));
+                        targetType.Name));
             }
             
             object converted = Convert.ChangeType(value, targetType);
