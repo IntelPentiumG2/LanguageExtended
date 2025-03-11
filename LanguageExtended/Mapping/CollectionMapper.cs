@@ -12,6 +12,7 @@ namespace LanguageExtended.Mapping;
 internal class CollectionMapper
 {
     private readonly TypeHelper _typeHelper;
+    private readonly TypeConverter _typeConverter;
     private readonly Mapper _mapper;
 
     /// <summary>
@@ -19,10 +20,11 @@ internal class CollectionMapper
     /// </summary>
     /// <param name="typeHelper">The Helper</param>
     /// <param name="mapper">The Mapper</param>
-    internal CollectionMapper(Mapper mapper, TypeHelper typeHelper)
+    internal CollectionMapper(Mapper mapper, TypeHelper typeHelper, TypeConverter typeConverter)
     {
         _typeHelper = typeHelper;
         _mapper = mapper;
+        _typeConverter = typeConverter;
     }
     
         /// <summary>
@@ -65,7 +67,7 @@ internal class CollectionMapper
                 }
                 else
                 {
-                    var conversionResult = TypeConverter.TryConvertValue(item, elementType);
+                    var conversionResult = _typeConverter.TryConvertValue(item, elementType);
                     if (conversionResult.IsSuccess)
                     {
                         mappedItems.Add(conversionResult.Value);
@@ -122,7 +124,7 @@ internal class CollectionMapper
     /// creates an appropriate target dictionary instance, converts source dictionary entries
     /// to match the target types, and sets the resulting dictionary on the target member.
     /// </remarks>
-    private static Result<bool, MappingError> HandleDictionary(object target, MemberInfo targetMember, object value)
+    private Result<bool, MappingError> HandleDictionary(object target, MemberInfo targetMember, object value)
     {
         try
         {
@@ -139,8 +141,8 @@ internal class CollectionMapper
             IDictionary targetDictionary = dictionaryResult.Value;
             foreach (DictionaryEntry entry in sourceDictionary)
             {
-                Result<object, MappingError> keyConversionResult = TypeConverter.TryConvertValue(entry.Key, keyType);
-                Result<object, MappingError> valueConversionResult = TypeConverter.TryConvertValue(entry.Value, valueType);
+                Result<object, MappingError> keyConversionResult = _typeConverter.TryConvertValue(entry.Key, keyType);
+                Result<object, MappingError> valueConversionResult = _typeConverter.TryConvertValue(entry.Value, valueType);
 
                 if (keyConversionResult.IsSuccess && valueConversionResult.IsSuccess)
                 {

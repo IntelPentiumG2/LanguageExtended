@@ -27,6 +27,7 @@ public  class Mapper
     private readonly MemberAccessor _memberAccessor;
     private readonly ComplexTypeMapper _complexTypeMapper;
     private readonly CollectionMapper _collectionMapper;
+    private readonly TypeConverter _typeConverter;
 
     /// <summary>
     /// Gets the default instance of the Mapper.
@@ -50,7 +51,8 @@ public  class Mapper
         _options = options;
         _memberAccessor = new MemberAccessor(options.IgnoreCase);
         _complexTypeMapper = new ComplexTypeMapper(this);
-        _collectionMapper = new CollectionMapper(this, new TypeHelper());
+        _typeConverter = new TypeConverter(_options.IgnoreCase);
+        _collectionMapper = new CollectionMapper(this, new TypeHelper(), _typeConverter);
     }
     
     /// <summary>
@@ -173,7 +175,7 @@ public  class Mapper
         if (TypeHelper.IsCollection(targetMemberType) && TypeHelper.IsCollection(valueType))
             return _collectionMapper.HandleCollection(target, targetMember, source);
 
-        Result<object, MappingError> conversionResult = TypeConverter.TryConvertValue(source, targetMemberType);
+        Result<object, MappingError> conversionResult = _typeConverter.TryConvertValue(source, targetMemberType);
 
         if (conversionResult.IsSuccess) 
             return MemberAccessor.SetMemberValue(target, targetMember, conversionResult.Value);
