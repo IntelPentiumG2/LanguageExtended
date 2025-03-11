@@ -12,18 +12,20 @@ namespace LanguageExtended.Mapping;
 /// </summary>
 internal class MemberAccessor
 {
-    private readonly bool _ignoreCase;
+    private readonly StringComparison _stringComparison;
     private readonly ConcurrentDictionary<Type, PropertyInfo[]> _properties;
     private readonly ConcurrentDictionary<Type, FieldInfo[]> _fields;
+    private readonly ConcurrentDictionary<(Type, string), Option<MemberInfo>> _members;
 
     /// <summary>
     /// Constructor to create a new MemberAccessor object.
     /// </summary>
     internal MemberAccessor(bool ignoreCase)
     {
-        _ignoreCase = ignoreCase;
+        _stringComparison = ignoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
         _properties = new ConcurrentDictionary<Type, PropertyInfo[]>();
         _fields = new ConcurrentDictionary<Type, FieldInfo[]>();
+        _members = new ConcurrentDictionary<(Type, string), Option<MemberInfo>>();
     }
     
     /// <summary>
@@ -56,26 +58,25 @@ internal class MemberAccessor
     /// <returns>An Option containing the found MemberInfo or None if not found.</returns>
     internal Option<MemberInfo> FindSourceMember(Type sourceType, string memberName)
     {
-        // Get cached properties safely
-        PropertyInfo[] props = _properties.GetOrAdd(sourceType, t => 
-            t.GetProperties(BindingFlags.Public | BindingFlags.Instance));
+        return _members.GetOrAdd((sourceType, memberName), _ =>
+        {
+            PropertyInfo[] props = _properties.GetOrAdd(sourceType, t => 
+                t.GetProperties(BindingFlags.Public | BindingFlags.Instance));
         
-        PropertyInfo? prop = props.FirstOrDefault(p => p.Name.Equals(memberName, 
-            _ignoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal));
+            PropertyInfo? prop = props.FirstOrDefault(p => p.Name.Equals(memberName, _stringComparison));
         
-        if (prop != null && prop.CanRead) 
-            return Option<MemberInfo>.Some(prop);
-
-        // Get cached fields safely
-        FieldInfo[] fields = _fields.GetOrAdd(sourceType, t => 
-            t.GetFields(BindingFlags.Public | BindingFlags.Instance));
+            if (prop != null && prop.CanRead) 
+                return Option<MemberInfo>.Some(prop);
+            
+            FieldInfo[] fields = _fields.GetOrAdd(sourceType, t => 
+                t.GetFields(BindingFlags.Public | BindingFlags.Instance));
         
-        FieldInfo? field = fields.FirstOrDefault(f => f.Name.Equals(memberName,
-            _ignoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal));
+            FieldInfo? field = fields.FirstOrDefault(f => f.Name.Equals(memberName, _stringComparison));
         
-        return field != null 
-            ? Option<MemberInfo>.Some(field) 
-            : Option<MemberInfo>.None();
+            return field != null 
+                ? Option<MemberInfo>.Some(field) 
+                : Option<MemberInfo>.None();
+        });
     }
     
     /// <summary>

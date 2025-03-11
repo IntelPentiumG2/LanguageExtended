@@ -157,33 +157,27 @@ public  class Mapper
 
 
     /// <summary>
-    /// Sets the mapped value to the target member.
+    /// Sets the mapped source to the target member.
     /// </summary>
-    /// <param name="target">The target object to set the value on.</param>
-    /// <param name="targetMember">The target member to set the value to.</param>
-    /// <param name="value">The value to set.</param>
-    private Result<bool, MappingError> SetMappedValue(object target, MemberInfo targetMember, object value)
+    /// <param name="target">The target object to set the source on.</param>
+    /// <param name="targetMember">The target member to set the source to.</param>
+    /// <param name="source">The source object to set the target to.</param>
+    private Result<bool, MappingError> SetMappedValue(object target, MemberInfo targetMember, object source)
     {
         Type targetMemberType = MemberAccessor.GetMemberType(targetMember);
-        Type valueType = value.GetType();
+        Type valueType = source.GetType();
 
         if (TypeHelper.IsComplexType(targetMemberType) && TypeHelper.IsComplexType(valueType))
-            return _complexTypeMapper.HandleComplexType(target, targetMember, value);
+            return _complexTypeMapper.HandleComplexType(target, targetMember, source);
 
         if (TypeHelper.IsCollection(targetMemberType) && TypeHelper.IsCollection(valueType))
-            return _collectionMapper.HandleCollection(target, targetMember, value);
+            return _collectionMapper.HandleCollection(target, targetMember, source);
 
-        Result<object, MappingError> conversionResult = TypeConverter.TryConvertValue(value, targetMemberType);
+        Result<object, MappingError> conversionResult = TypeConverter.TryConvertValue(source, targetMemberType);
 
         if (conversionResult.IsSuccess) 
             return MemberAccessor.SetMemberValue(target, targetMember, conversionResult.Value);
-
-        // Special handling for enum conversion errors
-        // if (targetMemberType.IsEnum && value is string)
-        // {
-        //     // Enum conversion failures should cause mapping failure
-        //     return Result<bool, MappingError>.Failure(conversionResult.Error);
-        // }
+        
         return _options.LenientMappingErrors 
             ? Result<bool, MappingError>.Success(true) 
             : Result<bool, MappingError>.Failure(conversionResult.Error);
