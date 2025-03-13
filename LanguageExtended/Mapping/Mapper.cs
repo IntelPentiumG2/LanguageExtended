@@ -20,8 +20,6 @@ namespace LanguageExtended.Mapping;
 public  class Mapper
 {
     private readonly MappingOptions _options;
-    // private readonly ConcurrentDictionary<(Type sourceType, Type targetType), Dictionary<string, MemberInfo>> _memberMappingCache;
-
     private static readonly Lazy<Mapper> DefaultInstance = new (() => new Mapper(new MappingOptions()), LazyThreadSafetyMode.ExecutionAndPublication);
     
     private readonly MemberAccessor _memberAccessor;
@@ -45,9 +43,6 @@ public  class Mapper
     /// <param name="options"> The options of the Mapper </param>
     public Mapper(MappingOptions options)
     {
-        // _memberMappingCache =
-        //     new ConcurrentDictionary<(Type sourceType, Type targetType), Dictionary<string, MemberInfo>>();
-        
         _options = options;
         _memberAccessor = new MemberAccessor(options.IgnoreCase);
         _complexTypeMapper = new ComplexTypeMapper(this);
@@ -107,7 +102,10 @@ public  class Mapper
 
         try
         {
-            foreach (MemberInfo targetMember in _memberAccessor.GetTargetMembers(target.GetType()))
+            int mapCount = 0;
+            MemberInfo[] targetMembers = [ .. _memberAccessor.GetTargetMembers(target.GetType()) ];
+            
+            foreach (MemberInfo targetMember in targetMembers)
             {
                 Option<MemberInfo> sourceMemberOption = _memberAccessor.FindSourceMember(source.GetType(), targetMember.Name);
 
@@ -123,6 +121,8 @@ public  class Mapper
                             {
                                 throw new MappingException(result.Error);
                             }
+                            
+                            mapCount++;
                         },
                         () =>
                         {
@@ -140,7 +140,13 @@ public  class Mapper
                 });
             }
 
-            return Result<bool, MappingError>.Success(true);
+            if (mapCount == targetMembers.Length
+                || _options.IgnoreUnmappedTargetMembers)
+                return Result<bool, MappingError>.Success(true);
+            
+            return Result<bool, MappingError>.Failure(new MappingError(
+                "Mapping failed: not all members were mapped",
+                MappingErrorType.GeneralMappingError));
         }
         catch (MappingException ex)
         {

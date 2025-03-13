@@ -291,11 +291,11 @@ public class MapperTests
     public void Map_FailOnMissingProperties_Failure()
     {
         var source = new { NonExistentProperty = "value" };
-        var mapper = new Mapper(new MappingOptions { IgnoreMissingSourceMembers = true });
+        var mapper = new Mapper(new MappingOptions { IgnoreUnmappedTargetMembers = false });
 
         var result = mapper.Map<Destination>(source);
 
-        Assert.False(result.IsSuccess);
+        Assert.True(result.IsFailure);
         Assert.Equal(MappingErrorType.GeneralMappingError, result.Error.ErrorType);
     }
 
