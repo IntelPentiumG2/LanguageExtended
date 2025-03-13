@@ -15,7 +15,12 @@ public record MappingOptions
     /// <summary>
     /// Gets or sets a value indicating whether to ignore missing members in the target type.
     /// </summary>
-    public bool IgnoreMissingMembers { get; set; } = true;
+    public bool IgnoreMissingSourceMembers { get; set; } = true;
+    
+    /// <summary>
+    /// Gets or sets a value indicating whether to ignore unmapped members in the target type.
+    /// </summary>
+    public bool IgnoreUnmappedTargetMembers { get; set; } = false;
     
     /// <summary>
     /// Gets or sets a value indicating whether to ignore failed mappings.
@@ -26,4 +31,9 @@ public record MappingOptions
     /// Gets or sets a value indicating whether to throw an exception on mapping failure.
     /// </summary>
     public bool ThrowOnMappingFailure { get; set; } = false;
+    
+    /// <summary>
+    /// Gets or sets a value indicating whether to create empty objects instead of null if the source value is null.
+    /// </summary>
+    public bool CreateEmptyObjectsInsteadOfNull { get; set; } = false;
 }

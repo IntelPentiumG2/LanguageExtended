@@ -1,13 +1,16 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net9.0</TargetFramework>
         <LangVersion>preview</LangVersion>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <Title>LanguageExtended</Title>
-        <Authors>IntelPentiumG2</Authors>
+        <Authors>Jonas Schlag</Authors>
+        <Copyright>CC BY-NC-ND 4.0</Copyright>
+        <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+        <TargetFrameworks>net9.0;net8.0</TargetFrameworks>
+        <PackageLicenseUrl>https://creativecommons.org/licenses/by-nc-nd/4.0/?ref=chooser-v1</PackageLicenseUrl>
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">

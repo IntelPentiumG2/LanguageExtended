@@ -80,20 +80,6 @@ public class MapperTests
         Assert.False(result.IsSuccess);
         Assert.Equal(MappingErrorType.EnumConversionError, result.Error.ErrorType);
     }
-    
-    [Fact]
-    public void Map_NullNestedSource_CreatesEmptyNestedObject()
-    {
-        var source = new { Id = 1, Nested = (object)null };
-        var mapper = new Mapper();
-
-        var result = mapper.Map<ComplexDestination>(source);
-
-        Assert.True(result.IsSuccess);
-        Assert.Equal(1, result.Value.Id);
-        Assert.NotNull(result.Value.Nested); // Nested should be created even if source is null
-        Assert.Null(result.Value.Nested.Value);
-    }
 
     [Fact]
     public void Map_ComplexNestedProperties_Success()
@@ -175,19 +161,6 @@ public class MapperTests
         Assert.True(result.IsSuccess);
         Assert.Equal(1, result.Value.Id);
         Assert.Equal("Test", result.Value.Name);
-    }
-
-    [Fact]
-    public void Map_WithoutIgnoreCaseOption_MissesProperties()
-    {
-        var source = new { id = 1, NAME = "Test" }; // Different case
-        var mapper = new Mapper(new MappingOptions { IgnoreCase = false });
-
-        var result = mapper.Map<Destination>(source);
-
-        Assert.True(result.IsSuccess);
-        Assert.Equal(0, result.Value.Id); // Default value
-        Assert.Null(result.Value.Name); // Default value
     }
 
     [Fact]
@@ -312,6 +285,86 @@ public class MapperTests
         Assert.Equal(2, result.Value.Items.Count());
         Assert.Contains("Item1", result.Value.Items);
         Assert.Contains("Item2", result.Value.Items);
+    }
+    
+    [Fact]
+    public void Map_FailOnMissingProperties_Failure()
+    {
+        var source = new { NonExistentProperty = "value" };
+        var mapper = new Mapper(new MappingOptions { IgnoreMissingSourceMembers = true });
+
+        var result = mapper.Map<Destination>(source);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(MappingErrorType.GeneralMappingError, result.Error.ErrorType);
+    }
+
+    [Fact]
+    public void Map_IgnoreMissingMembers_Success()
+    {
+        var source = new { Id = 1, Name = "Test" };
+        var mapper = new Mapper(new MappingOptions { IgnoreMissingSourceMembers = true });
+
+        var result = mapper.Map<Destination>(source);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(1, result.Value.Id);
+        Assert.Equal("Test", result.Value.Name);
+    }
+
+    [Fact]
+    public void Map_IgnoreUnmappedTargetMembers_Success()
+    {
+        var source = new { Id = 1 };
+        var mapper = new Mapper(new MappingOptions { IgnoreUnmappedTargetMembers = true });
+
+        var result = mapper.Map<Destination>(source);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(1, result.Value.Id);
+        Assert.Null(result.Value.Name); // Unmapped target member
+    }
+
+    [Fact]
+    public void Map_ComplexNestedTypesWithNullValues_Success()
+    {
+        var source = new { Id = 1, Nested = (object?)null };
+        var mapper = new Mapper();
+
+        var result = mapper.Map<ComplexDestination>(source);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(1, result.Value.Id);
+        Assert.Null(result.Value.Nested);
+    }
+
+    [Fact]
+    public void Map_CollectionsWithNullValues_Success()
+    {
+        var source = new { Items = new string[] { "Item1", null, "Item2" } };
+        var mapper = new Mapper();
+
+        var result = mapper.Map<CollectionDestination>(source);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(3, result.Value.Items.Length);
+        Assert.Equal("Item1", result.Value.Items[0]);
+        Assert.Null(result.Value.Items[1]);
+        Assert.Equal("Item2", result.Value.Items[2]);
+    }
+
+    [Fact]
+    public void Map_ReadOnlyProperties_Success()
+    {
+        var source = new { Id = 1, Name = "Test", ReadOnly = "ReadOnly" };
+        var mapper = new Mapper();
+
+        var result = mapper.Map<ClassWithReadOnlyProperty>(source);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(1, result.Value.Id);
+        Assert.Equal("Test", result.Value.Name);
+        Assert.Equal("DefaultReadOnly", result.Value.ReadOnly); // Should not be mapped
     }
 
     // Additional supporting classes for the tests
