@@ -8,7 +8,7 @@ namespace LanguageExtended.Mapping;
 
 internal class ReferenceEqualityComparer : IEqualityComparer<object>
 {
-    public bool Equals(object? x, object? y) => ReferenceEquals(x, y);
+    public new bool Equals(object? x, object? y) => ReferenceEquals(x, y);
     public int GetHashCode(object obj) => RuntimeHelpers.GetHashCode(obj);
 }
 
