@@ -1,9 +1,16 @@
 ﻿using System.Reflection;
+using System.Runtime.CompilerServices;
 using LanguageExtended.Result;
 // ReSharper disable UnusedMember.Local
 // ReSharper disable UnusedType.Global
 
 namespace LanguageExtended.Mapping;
+
+internal class ReferenceEqualityComparer : IEqualityComparer<object>
+{
+    public bool Equals(object? x, object? y) => ReferenceEquals(x, y);
+    public int GetHashCode(object obj) => RuntimeHelpers.GetHashCode(obj);
+}
 
 /// <summary>
 /// Provides methods for mapping complex types.
@@ -11,18 +18,22 @@ namespace LanguageExtended.Mapping;
 internal class ComplexTypeMapper
 {
     private readonly Mapper _mapper;
-
-    private readonly bool _createEmptyObjectsInsteadOfNull;
+    private readonly Dictionary<object , object> _mappedObjects;
 
     /// <summary>
     /// Initializes a new instance of the ComplexTypeMapper class.
     /// </summary>
     /// <param name="mapper">The mapper</param>
     /// <param name="createEmptyObjectsInsteadOfNull">If empty objects should be created instead of null values if source is null</param>
-    internal ComplexTypeMapper(Mapper mapper, bool createEmptyObjectsInsteadOfNull = false)
+    internal ComplexTypeMapper(Mapper mapper)
     {
         _mapper = mapper;
-        _createEmptyObjectsInsteadOfNull = createEmptyObjectsInsteadOfNull;
+        _mappedObjects = new Dictionary<object, object>(new ReferenceEqualityComparer());
+    }
+    
+    internal void Reset()
+    {
+        _mappedObjects.Clear();
     }
     
     /// <summary>
@@ -38,17 +49,27 @@ internal class ComplexTypeMapper
         {
             Type targetType = MemberAccessor.GetMemberType(targetMember);
 
-            // Create a new instance of the complex type
-            object nestedTarget;
+            // Check if we've already mapped this object to prevent circular reference issues
+            // TODO: Fix circular reference issue, currently the results arent reference equal but value equal instead.
+            if (_mappedObjects.TryGetValue(value, out var existingTarget))
+            {
+                return MemberAccessor.SetMemberValue(target, targetMember, existingTarget);
+            }
+            
             try
             {
-                nestedTarget = Activator.CreateInstance(targetType)
-                               ?? throw new InvalidOperationException($"Failed to create instance of {targetType}");
+                // Create a new instance of the complex type
+                object nestedTarget = Activator.CreateInstance(targetType)
+                                      ?? throw new InvalidOperationException($"Failed to create instance of {targetType}");
+
+                // Add the new instance to the mapped objects dictionary BEFORE mapping properties
+                _mappedObjects[value] = nestedTarget;
 
                 // Set the new instance on the target object and check result
                 var setResult = MemberAccessor.SetMemberValue(target, targetMember, nestedTarget);
-                if (setResult.IsFailure)
-                    return Result<bool, MappingError>.Failure(setResult.Error);
+                return setResult.IsFailure 
+                    ? Result<bool, MappingError>.Failure(setResult.Error) 
+                    : _mapper.Map(value, nestedTarget);  // Now map properties from source to the nested target
             }
             catch (Exception ex)
             {
@@ -58,9 +79,6 @@ internal class ComplexTypeMapper
                     targetType.Name,
                     ex));
             }
-
-            // Now map properties from source to the nested target
-            return _mapper.Map(value, nestedTarget);
         }
         catch (Exception ex)
         {

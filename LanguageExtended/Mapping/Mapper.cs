@@ -65,6 +65,8 @@ public  class Mapper
 
         try
         {
+            _complexTypeMapper.Reset();
+            
             TTarget target = new TTarget();
             Result<bool, MappingError> mapResult = Map(source, target);
 
@@ -118,9 +120,7 @@ public  class Mapper
                             Result<bool, MappingError> result = SetMappedValue(target, targetMember, value);
 
                             if (result.IsFailure)
-                            {
                                 throw new MappingException(result.Error);
-                            }
                             
                             mapCount++;
                         },
