@@ -129,7 +129,6 @@ public class ComplexMapperTests
         };
         
         var strictResult = strictMapper.Map<SimplifiedTarget>(sourceCaseMismatch);
-        //TODO: Fix this so it actually returns a failure
         Assert.True(strictResult.IsFailure); // Should fail due to case mismatch and strict options
         
         // Test with lenient mapper

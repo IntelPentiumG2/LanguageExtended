@@ -22,6 +22,7 @@ namespace MappingTest
             // Assert
             Assert.True(result.IsSuccess);
             var mappedParent = result.Value;
+            Assert.Equivalent(mappedParent, mappedParent.Child.Parent);
             Assert.Same(mappedParent, mappedParent.Child.Parent);
         }
 

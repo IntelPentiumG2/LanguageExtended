@@ -52,9 +52,7 @@ internal class ComplexTypeMapper
             // Check if we've already mapped this object to prevent circular reference issues
             // TODO: Fix circular reference issue, currently the results arent reference equal but value equal instead.
             if (_mappedObjects.TryGetValue(value, out var existingTarget))
-            {
                 return MemberAccessor.SetMemberValue(target, targetMember, existingTarget);
-            }
             
             try
             {

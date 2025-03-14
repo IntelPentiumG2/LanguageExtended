@@ -181,6 +181,8 @@ public  class Mapper
         }
         
         Type valueType = source.GetType();
+        
+        //TODO: Add support for dynamic types like ExpandoObject
 
         if (TypeHelper.IsComplexType(targetMemberType) && TypeHelper.IsComplexType(valueType))
             return _complexTypeMapper.HandleComplexType(target, targetMember, source);
