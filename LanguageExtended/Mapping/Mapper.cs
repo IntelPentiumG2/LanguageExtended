@@ -111,7 +111,7 @@ public  class Mapper
 
                 sourceMemberOption.IfSome(sourceMember =>
                 {
-                    Option<object> valueOption = MemberAccessor.GetMemberValue(source, sourceMember);
+                    Result<object?, MappingError> valueOption = MemberAccessor.GetMemberValue(source, sourceMember);
                     valueOption.Match(
                         value =>
                         {
@@ -124,7 +124,7 @@ public  class Mapper
                             
                             mapCount++;
                         },
-                        () =>
+                        _ =>
                         {
                             if (!TypeHelper.IsComplexType(MemberAccessor.GetMemberType(targetMember)))
                                 return;
@@ -170,9 +170,16 @@ public  class Mapper
     /// <param name="target">The target object to set the source on.</param>
     /// <param name="targetMember">The target member to set the source to.</param>
     /// <param name="source">The source object to set the target to.</param>
-    private Result<bool, MappingError> SetMappedValue(object target, MemberInfo targetMember, object source)
+    private Result<bool, MappingError> SetMappedValue(object target, MemberInfo targetMember, object? source)
     {
         Type targetMemberType = MemberAccessor.GetMemberType(targetMember);
+
+        if (source is null
+            && !_options.CreateEmptyObjectsInsteadOfNull)
+        {
+            return MemberAccessor.SetMemberValue(target, targetMember, null);
+        }
+        
         Type valueType = source.GetType();
 
         if (TypeHelper.IsComplexType(targetMemberType) && TypeHelper.IsComplexType(valueType))

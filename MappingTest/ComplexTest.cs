@@ -220,7 +220,7 @@ public class ComplexSource
     public CustomCollection<string> CustomCollection { get; set; }
     public Metric[] Metrics { get; set; }
     public Configuration Configuration { get; set; }
-    public object NullProperty { get; set; }
+    public object? NullProperty { get; set; }
     public decimal DecimalValue { get; set; }
     public readonly int ReadOnlyField = 999;
 }

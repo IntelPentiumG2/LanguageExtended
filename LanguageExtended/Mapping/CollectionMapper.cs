@@ -14,17 +14,19 @@ internal class CollectionMapper
     private readonly TypeHelper _typeHelper;
     private readonly TypeConverter _typeConverter;
     private readonly Mapper _mapper;
+    private readonly bool _createEmptyObjectsInsteadOfNull;
 
     /// <summary>
     /// Initializes a new instance of the CollectionMapper class.
     /// </summary>
     /// <param name="typeHelper">The Helper</param>
     /// <param name="mapper">The Mapper</param>
-    internal CollectionMapper(Mapper mapper, TypeHelper typeHelper, TypeConverter typeConverter)
+    internal CollectionMapper(Mapper mapper, TypeHelper typeHelper, TypeConverter typeConverter, bool createEmptyObjectsInsteadOfNull = false)
     {
         _typeHelper = typeHelper;
         _mapper = mapper;
         _typeConverter = typeConverter;
+        _createEmptyObjectsInsteadOfNull = createEmptyObjectsInsteadOfNull;
     }
     
         /// <summary>
@@ -47,12 +49,15 @@ internal class CollectionMapper
                 return HandleDictionary(target, targetMember, value);
             }
             
-            List<object> mappedItems = [];
+            List<object?> mappedItems = [];
 
             foreach (object? item in sourceCollection)
             {
-                if (item == null) 
+                if (item == null)
+                {
+                    mappedItems.Add(null);
                     continue;
+                }
 
                 if (TypeHelper.IsComplexType(elementType))
                 {

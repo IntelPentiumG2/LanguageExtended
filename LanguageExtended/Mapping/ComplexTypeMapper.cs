@@ -12,13 +12,17 @@ internal class ComplexTypeMapper
 {
     private readonly Mapper _mapper;
 
+    private readonly bool _createEmptyObjectsInsteadOfNull;
+
     /// <summary>
     /// Initializes a new instance of the ComplexTypeMapper class.
     /// </summary>
     /// <param name="mapper">The mapper</param>
-    internal ComplexTypeMapper(Mapper mapper)
+    /// <param name="createEmptyObjectsInsteadOfNull">If empty objects should be created instead of null values if source is null</param>
+    internal ComplexTypeMapper(Mapper mapper, bool createEmptyObjectsInsteadOfNull = false)
     {
         _mapper = mapper;
+        _createEmptyObjectsInsteadOfNull = createEmptyObjectsInsteadOfNull;
     }
     
     /// <summary>

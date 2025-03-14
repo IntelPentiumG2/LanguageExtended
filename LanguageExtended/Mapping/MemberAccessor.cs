@@ -101,7 +101,7 @@ internal class MemberAccessor
     /// <param name="obj">The object to get the value from.</param>
     /// <param name="member">The member to get the value of.</param>
     /// <returns>An Option containing the value of the member or None if not found.</returns>
-    internal static Option<object> GetMemberValue(object obj, MemberInfo member)
+    internal static Result<object?, MappingError> GetMemberValue(object obj, MemberInfo member)
     {
         try
         {
@@ -113,13 +113,15 @@ internal class MemberAccessor
                 _ => throw new ArgumentException("Member must be a property or field", nameof(member))
             };
 
-            return value != null 
-                ? Option<object>.Some(value) 
-                : Option<object>.None();
+            return Result<object?, MappingError>.Success(value);
         }
-        catch
+        catch (Exception ex)
         {
-            return Option<object>.None();
+            return Result<object?, MappingError>.Failure(new MappingError(
+                $"Failed to get value for {member.Name}: {ex.Message}",
+                MappingErrorType.InvalidMemberType,
+                member.Name,
+                ex));
         }
     }
     
