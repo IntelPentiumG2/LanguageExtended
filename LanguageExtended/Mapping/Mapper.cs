@@ -65,6 +65,7 @@ public  class Mapper
 
         try
         {
+            //TODO: Implement a better way to track circular references
             _complexTypeMapper.Reset();
             
             TTarget target = new TTarget();
@@ -104,7 +105,6 @@ public  class Mapper
 
         try
         {
-            int mapCount = 0;
             MemberInfo[] targetMembers = [ .. _memberAccessor.GetTargetMembers(target.GetType()) ];
             
             foreach (MemberInfo targetMember in targetMembers)
@@ -121,11 +121,12 @@ public  class Mapper
 
                             if (result.IsFailure)
                                 throw new MappingException(result.Error);
-                            
-                            mapCount++;
                         },
-                        _ =>
+                        mappingError =>
                         {
+                            if (_options.IgnoreUnmappedTargetMembers == false)
+                                throw new MappingException(mappingError);
+                            
                             if (!TypeHelper.IsComplexType(MemberAccessor.GetMemberType(targetMember)))
                                 return;
 
@@ -140,13 +141,7 @@ public  class Mapper
                 });
             }
 
-            if (mapCount == targetMembers.Length
-                || _options.IgnoreUnmappedTargetMembers)
-                return Result<bool, MappingError>.Success(true);
-            
-            return Result<bool, MappingError>.Failure(new MappingError(
-                "Mapping failed: not all members were mapped",
-                MappingErrorType.GeneralMappingError));
+            return Result<bool, MappingError>.Success(true);
         }
         catch (MappingException ex)
         {

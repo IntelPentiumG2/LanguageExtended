@@ -1,4 +1,6 @@
-﻿using System.Dynamic;
+﻿using System.Diagnostics;
+using System.Dynamic;
+using System.Globalization;
 using LanguageExtended.Mapping;
 using LanguageExtended.Result;
 
@@ -127,7 +129,7 @@ namespace MappingTest
             {
                 Id = 1,
                 Value = 42,
-                Items = new List<int> { 1, 2, 3 }
+                Items = [1, 2, 3]
             };
             
             var mapper = new Mapper();
@@ -139,7 +141,7 @@ namespace MappingTest
             Assert.True(result.IsSuccess);
             Assert.Equal(1, result.Value.Id);
             Assert.Equal(42, result.Value.Value);
-            Assert.Equal(new List<int> { 1, 2, 3 }, result.Value.Items);
+            Assert.Equal([1, 2, 3], result.Value.Items);
         }
 
         [Fact]

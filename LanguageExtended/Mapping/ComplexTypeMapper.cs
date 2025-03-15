@@ -18,7 +18,7 @@ internal class ReferenceEqualityComparer : IEqualityComparer<object>
 internal class ComplexTypeMapper
 {
     private readonly Mapper _mapper;
-    private readonly Dictionary<object , object> _mappedObjects;
+    private readonly Dictionary<object , object> _alreadyMappedObjects;
 
     /// <summary>
     /// Initializes a new instance of the ComplexTypeMapper class.
@@ -28,12 +28,12 @@ internal class ComplexTypeMapper
     internal ComplexTypeMapper(Mapper mapper)
     {
         _mapper = mapper;
-        _mappedObjects = new Dictionary<object, object>(new ReferenceEqualityComparer());
+        _alreadyMappedObjects = new Dictionary<object, object>(new ReferenceEqualityComparer());
     }
     
     internal void Reset()
     {
-        _mappedObjects.Clear();
+        _alreadyMappedObjects.Clear();
     }
     
     /// <summary>
@@ -51,7 +51,7 @@ internal class ComplexTypeMapper
 
             // Check if we've already mapped this object to prevent circular reference issues
             // TODO: Fix circular reference issue, currently the results arent reference equal but value equal instead.
-            if (_mappedObjects.TryGetValue(value, out var existingTarget))
+            if (_alreadyMappedObjects.TryGetValue(value, out var existingTarget))
                 return MemberAccessor.SetMemberValue(target, targetMember, existingTarget);
             
             try
@@ -61,7 +61,7 @@ internal class ComplexTypeMapper
                                       ?? throw new InvalidOperationException($"Failed to create instance of {targetType}");
 
                 // Add the new instance to the mapped objects dictionary BEFORE mapping properties
-                _mappedObjects[value] = nestedTarget;
+                _alreadyMappedObjects[value] = nestedTarget;
 
                 // Set the new instance on the target object and check result
                 var setResult = MemberAccessor.SetMemberValue(target, targetMember, nestedTarget);
