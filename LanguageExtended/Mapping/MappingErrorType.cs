@@ -57,5 +57,9 @@ public enum MappingErrorType
     /// <summary>
     /// Error occurred when creating a new Collection.
     /// </summary>
-    CollectionCreationError
+    CollectionCreationError,
+    /// <summary>
+    /// Error occurred when a member was not found.
+    /// </summary>
+    MemberNotFound
 }

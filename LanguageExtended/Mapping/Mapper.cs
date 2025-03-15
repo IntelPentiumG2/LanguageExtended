@@ -106,12 +106,12 @@ public  class Mapper
         try
         {
             MemberInfo[] targetMembers = [ .. _memberAccessor.GetTargetMembers(target.GetType()) ];
-            int count = 0;
+
             foreach (MemberInfo targetMember in targetMembers)
             {
                 Option<MemberInfo> sourceMemberOption = _memberAccessor.FindSourceMember(source.GetType(), targetMember.Name);
 
-                sourceMemberOption.IfSome(sourceMember =>
+                sourceMemberOption.Match(sourceMember =>
                 {
                     Result<object?, MappingError> valueOption = MemberAccessor.GetMemberValue(source, sourceMember);
                     valueOption.Match(
@@ -121,18 +121,17 @@ public  class Mapper
 
                             if (result.IsFailure)
                                 throw new MappingException(result.Error);
-
-                            count++;
                         },
                         mappingError =>
                         {
-                            if (_options.IgnoreUnmappedTargetMembers == false)
+                            if (!_options.IgnoreUnmappedTargetMembers)
                                 throw new MappingException(mappingError);
-                            
+
                             if (!TypeHelper.IsComplexType(MemberAccessor.GetMemberType(targetMember)))
                                 return;
 
-                            Result<bool, MappingError> result = ComplexTypeMapper.CreateAndSetComplexType(target, targetMember);
+                            Result<bool, MappingError> result =
+                                ComplexTypeMapper.CreateAndSetComplexType(target, targetMember);
                             if (result.IsFailure)
                                 throw new MappingException(new MappingError(
                                     $"Failed to initialize '{targetMember.Name}': {result.Error}",
@@ -140,14 +139,16 @@ public  class Mapper
                                     targetMember.Name));
                         }
                     );
+                },
+                () =>
+                {
+                    if (!_options.IgnoreUnmappedTargetMembers)
+                        throw new MappingException(new MappingError(
+                            $"Failed to find source member for '{targetMember.Name}'",
+                            MappingErrorType.MemberNotFound,
+                            targetMember.Name));
                 });
             }
-            
-            if (count != targetMembers.Length
-                && !_options.IgnoreUnmappedTargetMembers)
-                return Result<bool, MappingError>.Failure(new MappingError(
-                    "Failed to map all target members. Consider using IgnoreUnmappedTargetMembers option if applicable.",
-                    MappingErrorType.GeneralMappingError));
 
             return Result<bool, MappingError>.Success(true);
         }

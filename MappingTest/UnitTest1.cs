@@ -296,7 +296,7 @@ public class MapperTests
         var result = mapper.Map<Destination>(source);
 
         Assert.True(result.IsFailure);
-        Assert.Equal(MappingErrorType.GeneralMappingError, result.Error.ErrorType);
+        Assert.Equal(MappingErrorType.MemberNotFound, result.Error.ErrorType);
     }
 
     [Fact]
