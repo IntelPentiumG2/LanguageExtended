@@ -106,7 +106,7 @@ public  class Mapper
         try
         {
             MemberInfo[] targetMembers = [ .. _memberAccessor.GetTargetMembers(target.GetType()) ];
-            
+            int count = 0;
             foreach (MemberInfo targetMember in targetMembers)
             {
                 Option<MemberInfo> sourceMemberOption = _memberAccessor.FindSourceMember(source.GetType(), targetMember.Name);
@@ -121,6 +121,8 @@ public  class Mapper
 
                             if (result.IsFailure)
                                 throw new MappingException(result.Error);
+
+                            count++;
                         },
                         mappingError =>
                         {
@@ -140,6 +142,12 @@ public  class Mapper
                     );
                 });
             }
+            
+            if (count != targetMembers.Length
+                && !_options.IgnoreUnmappedTargetMembers)
+                return Result<bool, MappingError>.Failure(new MappingError(
+                    "Failed to map all target members. Consider using IgnoreUnmappedTargetMembers option if applicable.",
+                    MappingErrorType.GeneralMappingError));
 
             return Result<bool, MappingError>.Success(true);
         }
