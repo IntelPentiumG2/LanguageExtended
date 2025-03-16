@@ -1,5 +1,8 @@
 // ReSharper disable UnusedMember.Global
 // ReSharper disable UnusedType.Global
+
+using System.Diagnostics.CodeAnalysis;
+using System.Dynamic;
 using System.Reflection;
 using LanguageExtended.Result;
 using LanguageExtended.Option;
@@ -25,6 +28,7 @@ public  class Mapper
     private readonly MemberAccessor _memberAccessor;
     private readonly ComplexTypeMapper _complexTypeMapper;
     private readonly CollectionMapper _collectionMapper;
+    private readonly DynamicObjectMapper _dynamicObjectMapper;
     private readonly TypeConverter _typeConverter;
 
     /// <summary>
@@ -48,6 +52,7 @@ public  class Mapper
         _complexTypeMapper = new ComplexTypeMapper(this);
         _typeConverter = new TypeConverter(_options.IgnoreCase, _options.Culture);
         _collectionMapper = new CollectionMapper(this, new TypeHelper(), _typeConverter);
+        _dynamicObjectMapper = new DynamicObjectMapper(_options, _typeConverter, _memberAccessor);
     }
     
     /// <summary>
@@ -91,7 +96,7 @@ public  class Mapper
     /// <param name="source">The source object to map from.</param>
     /// <param name="target">The target object to map to.</param>
     /// <returns>A Result indicating success or failure with an error message.</returns>
-    internal Result<bool, MappingError> Map(object source, object target)
+    internal Result<bool, MappingError> Map([MaybeNull] object source, [MaybeNull] object target)
     {
         if (source == null)
             return Result<bool, MappingError>.Failure(new MappingError(
@@ -105,6 +110,11 @@ public  class Mapper
 
         try
         {
+            // Handle dynamic objects
+            //TODO: Change this to be more in line with the rest of the code
+            if (source is IDynamicMetaObjectProvider)
+                return _dynamicObjectMapper.MapDynamicObject(source, target);
+            
             MemberInfo[] targetMembers = [ .. _memberAccessor.GetTargetMembers(target.GetType()) ];
 
             foreach (MemberInfo targetMember in targetMembers)
