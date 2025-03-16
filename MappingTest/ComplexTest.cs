@@ -195,7 +195,13 @@ public class ComplexMapperTests
         Assert.Equal(2, interfaceResult.Value.CustomCollection.Count());
         
         // Test with invalid enum and strict mapper
-        var invalidEnumSource = new { Status = "NonExistent" };
+        var missingMembers = new { Status = "NonExistent" };
+        var missingMemberResult = strictMapper.Map<SimplifiedTarget>(missingMembers);
+        Assert.True(missingMemberResult.IsFailure);
+        Assert.Equal(MappingErrorType.MemberNotFound, missingMemberResult.Error.ErrorType);
+        
+        // Test with invalid enum and strict mapper
+        var invalidEnumSource = new { Id = 1, Name = "TestName", Status = "NonExistent" };
         var invalidEnumResult = strictMapper.Map<SimplifiedTarget>(invalidEnumSource);
         Assert.True(invalidEnumResult.IsFailure);
         Assert.Equal(MappingErrorType.EnumConversionError, invalidEnumResult.Error.ErrorType);

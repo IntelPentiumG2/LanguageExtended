@@ -46,7 +46,7 @@ public  class Mapper
         _options = options;
         _memberAccessor = new MemberAccessor(options.IgnoreCase);
         _complexTypeMapper = new ComplexTypeMapper(this);
-        _typeConverter = new TypeConverter(_options.IgnoreCase);
+        _typeConverter = new TypeConverter(_options.IgnoreCase, _options.Culture);
         _collectionMapper = new CollectionMapper(this, new TypeHelper(), _typeConverter);
     }
     
@@ -113,8 +113,8 @@ public  class Mapper
 
                 sourceMemberOption.Match(sourceMember =>
                 {
-                    Result<object?, MappingError> valueOption = MemberAccessor.GetMemberValue(source, sourceMember);
-                    valueOption.Match(
+                    Result<object?, MappingError> sourceValue = MemberAccessor.GetMemberValue(source, sourceMember);
+                    sourceValue.Match(
                         value =>
                         {
                             Result<bool, MappingError> result = SetMappedValue(target, targetMember, value);
@@ -176,14 +176,13 @@ public  class Mapper
     /// <param name="source">The source object to set the target to.</param>
     private Result<bool, MappingError> SetMappedValue(object target, MemberInfo targetMember, object? source)
     {
-        Type targetMemberType = MemberAccessor.GetMemberType(targetMember);
-
         if (source is null
             && !_options.CreateEmptyObjectsInsteadOfNull)
         {
             return MemberAccessor.SetMemberValue(target, targetMember, null);
         }
         
+        Type targetMemberType = MemberAccessor.GetMemberType(targetMember);
         Type valueType = source.GetType();
         
         //TODO: Add support for dynamic types like ExpandoObject

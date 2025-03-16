@@ -1,5 +1,5 @@
-﻿// ReSharper disable UnusedType.Global
-// ReSharper disable UnusedMember.Global
+﻿using System.Globalization;
+
 namespace LanguageExtended.Mapping;
 
 /// <summary>
@@ -36,4 +36,9 @@ public record MappingOptions
     /// Gets or sets a value indicating whether to create empty objects instead of null if the source value is null.
     /// </summary>
     public bool CreateEmptyObjectsInsteadOfNull { get; set; } = false;
+    
+    /// <summary>
+    /// Gets or sets the culture to use for parsing and formatting values.
+    /// </summary>
+    public CultureInfo Culture { get; set; } = CultureInfo.CurrentCulture;
 }

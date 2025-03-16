@@ -56,8 +56,13 @@ namespace MappingTest
                 DecimalValue = "1,234.56", // US format
                 DateValue = "12/25/2023"   // US format
             };
+
+            MappingOptions options = new MappingOptions
+            {
+                Culture = CultureInfo.GetCultureInfo("en-US")
+            };
             
-            var mapper = new Mapper();
+            var mapper = new Mapper(options);
             
             // Act
             var result = mapper.Map<CultureSpecificTarget>(source);
