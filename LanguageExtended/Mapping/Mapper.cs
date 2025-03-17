@@ -114,22 +114,19 @@ public  class Mapper
             //TODO: Change this to be more in line with the rest of the code
             if (source is IDynamicMetaObjectProvider)
                 return _dynamicObjectMapper.MapDynamicObject(source, target);
-            
-            MemberInfo[] targetMembers = [ .. _memberAccessor.GetTargetMembers(target.GetType()) ];
 
-            foreach (MemberInfo targetMember in targetMembers)
+            foreach (MemberInfo targetMember in _memberAccessor.GetTargetMembers(target.GetType()))
             {
                 Option<MemberInfo> sourceMemberOption = _memberAccessor.FindSourceMember(source.GetType(), targetMember.Name);
 
-                sourceMemberOption.Match(sourceMember =>
+                sourceMemberOption.Match(
+                sourceMember =>
                 {
                     Result<object?, MappingError> sourceValue = MemberAccessor.GetMemberValue(source, sourceMember);
                     sourceValue.Match(
                         value =>
                         {
-                            Result<bool, MappingError> result = SetMappedValue(target, targetMember, value);
-
-                            if (result.IsFailure)
+                            if (SetMappedValue(target, targetMember, value) is { IsFailure: true } result)
                                 throw new MappingException(result.Error);
                         },
                         mappingError =>
@@ -139,10 +136,8 @@ public  class Mapper
 
                             if (!TypeHelper.IsComplexType(MemberAccessor.GetMemberType(targetMember)))
                                 return;
-
-                            Result<bool, MappingError> result =
-                                ComplexTypeMapper.CreateAndSetComplexType(target, targetMember);
-                            if (result.IsFailure)
+                            
+                            if (ComplexTypeMapper.CreateAndSetComplexType(target, targetMember) is { IsFailure: true } result)
                                 throw new MappingException(new MappingError(
                                     $"Failed to initialize '{targetMember.Name}': {result.Error}",
                                     MappingErrorType.ComplexTypeMappingError,
