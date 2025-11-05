@@ -9,7 +9,7 @@
         <Authors>Jonas Schlag</Authors>
         <Copyright>CC BY-NC-ND 4.0</Copyright>
         <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
-        <TargetFrameworks>net9.0;net8.0</TargetFrameworks>
+        <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
         <PackageLicenseUrl>https://creativecommons.org/licenses/by-nc-nd/4.0/?ref=chooser-v1</PackageLicenseUrl>
     </PropertyGroup>
 
