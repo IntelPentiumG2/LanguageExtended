@@ -91,6 +91,51 @@ public  class Mapper
     }
 
     /// <summary>
+    /// Maps the properties and fields from the source object to a new instance of the target type.
+    /// This overload supports types without a parameterless constructor.
+    /// </summary>
+    /// <typeparam name="TTarget">The type of the target object.</typeparam>
+    /// <param name="source">The source object to map from.</param>
+    /// <returns>A Result containing the mapped target object or an error message.</returns>
+    public Result<TTarget, MappingError> MapWithoutDefaultConstructor<TTarget>(object source)
+    {
+        if (source == null)
+            return Result<TTarget, MappingError>.Failure(new MappingError(
+                "Source cannot be null", 
+                MappingErrorType.NullReference));
+
+        try
+        {
+            //TODO: Implement a better way to track circular references
+            _complexTypeMapper.Reset();
+            
+            // Use the advanced CreateInstance method that doesn't require a parameterless constructor
+            object? targetObj = ComplexTypeMapper.CreateInstanceAdvanced(typeof(TTarget));
+            
+            if (targetObj == null)
+                return Result<TTarget, MappingError>.Failure(new MappingError(
+                    $"Failed to create instance of {typeof(TTarget).Name}",
+                    MappingErrorType.ComplexTypeMappingError,
+                    typeof(TTarget).Name));
+
+            TTarget target = (TTarget)targetObj;
+            Result<bool, MappingError> mapResult = Map(source, target);
+
+            return mapResult.IsSuccess
+                ? Result<TTarget, MappingError>.Success(target)
+                : Result<TTarget, MappingError>.Failure(mapResult.Error);
+        }
+        catch (Exception ex)
+        {
+            return Result<TTarget, MappingError>.Failure(new MappingError(
+                "Mapping failed.", 
+                MappingErrorType.Other ,
+                "", 
+                ex));
+        }
+    }
+
+    /// <summary>
     /// Maps the properties and fields from the source object to the target object.
     /// </summary>
     /// <param name="source">The source object to map from.</param>

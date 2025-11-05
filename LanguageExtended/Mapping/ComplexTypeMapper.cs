@@ -57,8 +57,13 @@ internal class ComplexTypeMapper
             try
             {
                 // Create a new instance of the complex type
-                object nestedTarget = Activator.CreateInstance(targetType)
-                                      ?? throw new InvalidOperationException($"Failed to create instance of {targetType}");
+                object? nestedTarget = CreateInstanceAdvanced(targetType);
+                
+                if (nestedTarget == null)
+                    return Result<bool, MappingError>.Failure(new MappingError(
+                        $"Failed to create instance of {targetType.Name}",
+                        MappingErrorType.ComplexTypeMappingError,
+                        targetType.Name));
 
                 // Add the new instance to the mapped objects dictionary BEFORE mapping properties
                 _alreadyMappedObjects[value] = nestedTarget;
@@ -88,6 +93,85 @@ internal class ComplexTypeMapper
         }
     }
     
+    /// <summary>
+    /// Creates an instance of the specified type using various strategies.
+    /// Tries in order: parameterless constructor, constructor with default values, FormatterServices.
+    /// </summary>
+    /// <param name="type">The type to instantiate.</param>
+    /// <returns>An instance of the type, or null if creation failed.</returns>
+    internal static object? CreateInstanceAdvanced(Type type)
+    {
+        try
+        {
+            // Strategy 1: Try parameterless constructor (fastest)
+            if (type.GetConstructor(Type.EmptyTypes) != null)
+            {
+                return Activator.CreateInstance(type);
+            }
+
+            // Strategy 2: Try to find a constructor and use default values for parameters
+            var constructors = type.GetConstructors(BindingFlags.Public | BindingFlags.Instance)
+                .OrderBy(c => c.GetParameters().Length)
+                .ToArray();
+
+            foreach (var constructor in constructors)
+            {
+                try
+                {
+                    var parameters = constructor.GetParameters();
+                    var parameterValues = new object?[parameters.Length];
+
+                    for (int i = 0; i < parameters.Length; i++)
+                    {
+                        var param = parameters[i];
+                        
+                        // Use default value if available
+                        if (param.HasDefaultValue)
+                        {
+                            parameterValues[i] = param.DefaultValue;
+                        }
+                        // Use default for value types
+                        else if (param.ParameterType.IsValueType)
+                        {
+                            parameterValues[i] = Activator.CreateInstance(param.ParameterType);
+                        }
+                        // Use null for nullable reference types or if nulls are allowed
+                        else if (!param.ParameterType.IsValueType)
+                        {
+                            parameterValues[i] = null;
+                        }
+                        else
+                        {
+                            // Can't create this parameter, try next constructor
+                            break;
+                        }
+                    }
+
+                    // Try to create instance with these parameters
+                    return constructor.Invoke(parameterValues);
+                }
+                catch
+                {
+                    // This constructor didn't work, try the next one
+                    continue;
+                }
+            }
+
+            // Strategy 3: Use FormatterServices to create uninitialized object (last resort)
+            // This works even without any constructor but should be used carefully
+            if (!type.IsAbstract && !type.IsInterface)
+            {
+                return System.Runtime.Serialization.FormatterServices.GetUninitializedObject(type);
+            }
+
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
 /// <summary>
     /// Creates a new instance of a complex type and sets it to the specified member of the target object.
     /// </summary>
@@ -99,7 +183,7 @@ internal class ComplexTypeMapper
         Type targetType = MemberAccessor.GetMemberType(targetMember);
         try
         {
-            object? instance = Activator.CreateInstance(targetType);
+            object? instance = CreateInstanceAdvanced(targetType);
             
             if (instance == null)
                 return Result<bool, MappingError>.Failure(new MappingError(

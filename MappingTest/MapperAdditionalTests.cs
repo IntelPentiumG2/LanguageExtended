@@ -127,6 +127,45 @@ namespace MappingTest
         }
 
         [Fact]
+        public void MapWithoutDefaultConstructor_TypeWithoutParameterlessConstructor_Success()
+        {
+            // Arrange
+            var source = new SourceWithCustomType
+            {
+                Id = "456-789",
+                CustomValue = new CustomValueType("advanced-mapping")
+            };
+            
+            var mapper = new Mapper();
+            
+            // Act - Use the new method that doesn't require a parameterless constructor
+            var result = mapper.MapWithoutDefaultConstructor<TargetWithCustomType>(source);
+            
+            // Assert
+            Assert.True(result.IsSuccess);
+            Assert.Equal("456-789", result.Value.Id);
+            Assert.Equal("advanced-mapping", result.Value.CustomValue.Value);
+        }
+        
+        [Fact]
+        public void MapWithoutDefaultConstructor_ComplexTypeWithRequiredConstructor_Success()
+        {
+            // Arrange
+            var source = new { Name = "Test Person", Age = 25, Email = "test@example.com" };
+            
+            var mapper = new Mapper();
+            
+            // Act - PersonWithRequiredConstructor doesn't have a parameterless constructor
+            var result = mapper.MapWithoutDefaultConstructor<PersonWithRequiredConstructor>(source);
+            
+            // Assert
+            Assert.True(result.IsSuccess);
+            Assert.Equal("Test Person", result.Value.Name);
+            Assert.Equal(25, result.Value.Age);
+            Assert.Equal("test@example.com", result.Value.Email);
+        }
+
+        [Fact]
         public void Map_GenericTypeMapping_Success()
         {
             // Arrange
@@ -226,8 +265,9 @@ namespace MappingTest
 
         public class CustomValueType
         {
-            public string Value { get; }
+            public string Value { get; set; }
             
+
             public CustomValueType(string value)
             {
                 Value = value;
@@ -265,6 +305,21 @@ namespace MappingTest
             // This class has validation requirements
             public string Name { get; set; }  // Required
             public int Age { get; set; }      // Must be positive
+        }
+
+        public class PersonWithRequiredConstructor
+        {
+            public string Name { get; set; }
+            public int Age { get; set; }
+            public string Email { get; set; }
+            
+            // Constructor with required parameters
+            public PersonWithRequiredConstructor(string name, int age, string email)
+            {
+                Name = name;
+                Age = age;
+                Email = email;
+            }
         }
     }
 }

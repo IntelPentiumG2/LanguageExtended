@@ -1,4 +1,5 @@
-﻿namespace LanguageExtended.Result;
+﻿// ReSharper disable UnusedMember.Global
+namespace LanguageExtended.Result;
 
 /// <summary>
 /// Represents the result of an operation, which can be either a success or a failure.
