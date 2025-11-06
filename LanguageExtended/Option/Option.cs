@@ -1,4 +1,6 @@
-﻿namespace LanguageExtended.Option;
+﻿using System.Diagnostics.CodeAnalysis;
+
+namespace LanguageExtended.Option;
 
 /// <summary>
 /// Represents an optional value that may or may not have a value.
@@ -36,7 +38,7 @@ public readonly struct Option<T>  : IEquatable<Option<T>> where T : class
     /// </summary>
     /// <param name="value">The value of the Option</param>
     /// <returns>true if Option has a value, otherwise false</returns>
-    public bool TryGetValue(out T? value)
+    public bool TryGetValue([NotNullWhen(true)] out T? value)
     {
         value = _value;
         return IsSome;
