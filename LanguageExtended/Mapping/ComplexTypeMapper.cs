@@ -24,7 +24,6 @@ internal class ComplexTypeMapper
     /// Initializes a new instance of the ComplexTypeMapper class.
     /// </summary>
     /// <param name="mapper">The mapper</param>
-    /// <param name="createEmptyObjectsInsteadOfNull">If empty objects should be created instead of null values if source is null</param>
     internal ComplexTypeMapper(Mapper mapper)
     {
         _mapper = mapper;
@@ -34,6 +33,16 @@ internal class ComplexTypeMapper
     internal void Reset()
     {
         _alreadyMappedObjects.Clear();
+    }
+    
+    /// <summary>
+    /// Registers a source-to-target mapping to track circular references.
+    /// </summary>
+    /// <param name="source">The source object.</param>
+    /// <param name="target">The target object.</param>
+    internal void RegisterMapping(object source, object target)
+    {
+        _alreadyMappedObjects[source] = target;
     }
     
     /// <summary>
@@ -68,7 +77,7 @@ internal class ComplexTypeMapper
                 // Add the new instance to the mapped objects dictionary BEFORE mapping properties
                 _alreadyMappedObjects[value] = nestedTarget;
 
-                // Set the new instance on the target object and check result
+                // Set the new instance on the target object and check the result
                 var setResult = MemberAccessor.SetMemberValue(target, targetMember, nestedTarget);
                 return setResult.IsFailure 
                     ? Result<bool, MappingError>.Failure(setResult.Error) 
@@ -142,29 +151,23 @@ internal class ComplexTypeMapper
                         }
                         else
                         {
-                            // Can't create this parameter, try next constructor
+                            // Can't create this parameter, try the next constructor
                             break;
                         }
                     }
 
-                    // Try to create instance with these parameters
+                    // Try to create an instance with these parameters
                     return constructor.Invoke(parameterValues);
                 }
                 catch
                 {
                     // This constructor didn't work, try the next one
-                    continue;
                 }
             }
 
-            // Strategy 3: Use FormatterServices to create uninitialized object (last resort)
+            // Strategy 3: Use FormatterServices to create an uninitialized object (last resort)
             // This works even without any constructor but should be used carefully
-            if (!type.IsAbstract && !type.IsInterface)
-            {
-                return System.Runtime.Serialization.FormatterServices.GetUninitializedObject(type);
-            }
-
-            return null;
+            return type is { IsAbstract: false, IsInterface: false } ? RuntimeHelpers.GetUninitializedObject(type) : null;
         }
         catch
         {

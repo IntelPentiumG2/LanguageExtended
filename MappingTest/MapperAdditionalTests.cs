@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using System.Dynamic;
+﻿using System.Dynamic;
 using System.Globalization;
 using LanguageExtended.Mapping;
 using LanguageExtended.Result;
@@ -95,10 +94,10 @@ namespace MappingTest
             var results = await Task.WhenAll(tasks);
             
             // Assert
-            Assert.All(results, r => Assert.True((bool)r.IsSuccess));
+            Assert.All(results, r => Assert.True(r.IsSuccess));
             for (int i = 0; i < 100; i++)
             {
-                Assert.Equal($"Test{i}" as string, results[i].Value.Name as string);
+                Assert.Equal($"Test{i}" as string, results[i].Value.Name);
                 Assert.Equal(i, results[i].Value.Age);
             }
         }

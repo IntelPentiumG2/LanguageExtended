@@ -1,7 +1,6 @@
 ﻿// ReSharper disable UnusedMember.Local
 // ReSharper disable UnusedType.Global
 using System.Collections.Concurrent;
-using System.Globalization;
 using System.Reflection;
 using LanguageExtended.Option;
 using LanguageExtended.Result;

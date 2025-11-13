@@ -341,7 +341,7 @@ public class MapperTests
     [Fact]
     public void Map_CollectionsWithNullValues_Success()
     {
-        var source = new { Items = new string[] { "Item1", null, "Item2" } };
+        var source = new { Items = new[] { "Item1", null, "Item2" } };
         var mapper = new Mapper();
 
         var result = mapper.Map<CollectionDestination>(source);

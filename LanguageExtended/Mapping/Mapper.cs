@@ -74,6 +74,10 @@ public  class Mapper
             _complexTypeMapper.Reset();
             
             TTarget target = new TTarget();
+            
+            // Register the root mapping to handle circular references
+            _complexTypeMapper.RegisterMapping(source, target);
+            
             Result<bool, MappingError> mapResult = Map(source, target);
 
             return mapResult.IsSuccess
@@ -119,6 +123,10 @@ public  class Mapper
                     typeof(TTarget).Name));
 
             TTarget target = (TTarget)targetObj;
+            
+            // Register the root mapping to handle circular references
+            _complexTypeMapper.RegisterMapping(source, target);
+            
             Result<bool, MappingError> mapResult = Map(source, target);
 
             return mapResult.IsSuccess

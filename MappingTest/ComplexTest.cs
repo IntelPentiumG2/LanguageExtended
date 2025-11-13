@@ -248,7 +248,6 @@ public class ComplexTarget
     public Configuration Configuration { get; set; }
     public object NullProperty { get; set; }
     public decimal DecimalValue { get; set; }
-    public int ReadonlyField { get; }
 }
 
 public class SimplifiedTarget
