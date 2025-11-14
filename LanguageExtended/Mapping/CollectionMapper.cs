@@ -35,8 +35,9 @@ internal class CollectionMapper
     /// <param name="target">The target object to set the value on.</param>
     /// <param name="targetMember">The target member to set the value to.</param>
     /// <param name="value">The value to map.</param>
+    /// <param name="mappingContext">Dictionary to track already mapped objects for circular reference handling.</param>
     /// <returns>A Result indicating success or failure with an error message.</returns>
-    internal Result<bool, MappingError> HandleCollection(object target, MemberInfo targetMember, object value)
+    internal Result<bool, MappingError> HandleCollection(object target, MemberInfo targetMember, object value, Dictionary<object, object> mappingContext)
     {
         try
         {
@@ -67,7 +68,7 @@ internal class CollectionMapper
                         continue;
                     
                     // Map the item to the nested target
-                    _mapper.Map(item, nestedTarget);
+                    _mapper.Map(item, nestedTarget, mappingContext);
                     mappedItems.Add(nestedTarget);
                 }
                 else

@@ -70,15 +70,15 @@ public  class Mapper
 
         try
         {
-            //TODO: Implement a better way to track circular references
-            _complexTypeMapper.Reset();
+            // Create a new mapping context for this operation (thread-safe)
+            var mappingContext = _complexTypeMapper.CreateMappingContext();
             
             TTarget target = new TTarget();
             
             // Register the root mapping to handle circular references
-            _complexTypeMapper.RegisterMapping(source, target);
+            mappingContext[source] = target;
             
-            Result<bool, MappingError> mapResult = Map(source, target);
+            Result<bool, MappingError> mapResult = Map(source, target, mappingContext);
 
             return mapResult.IsSuccess
                 ? Result<TTarget, MappingError>.Success(target)
@@ -110,8 +110,8 @@ public  class Mapper
 
         try
         {
-            //TODO: Implement a better way to track circular references
-            _complexTypeMapper.Reset();
+            // Create a new mapping context for this operation (thread-safe)
+            var mappingContext = _complexTypeMapper.CreateMappingContext();
             
             // Use the advanced CreateInstance method that doesn't require a parameterless constructor
             object? targetObj = ComplexTypeMapper.CreateInstanceAdvanced(typeof(TTarget));
@@ -125,9 +125,9 @@ public  class Mapper
             TTarget target = (TTarget)targetObj;
             
             // Register the root mapping to handle circular references
-            _complexTypeMapper.RegisterMapping(source, target);
+            mappingContext[source] = target;
             
-            Result<bool, MappingError> mapResult = Map(source, target);
+            Result<bool, MappingError> mapResult = Map(source, target, mappingContext);
 
             return mapResult.IsSuccess
                 ? Result<TTarget, MappingError>.Success(target)
@@ -148,8 +148,9 @@ public  class Mapper
     /// </summary>
     /// <param name="source">The source object to map from.</param>
     /// <param name="target">The target object to map to.</param>
+    /// <param name="mappingContext">Dictionary to track already mapped objects for circular reference handling.</param>
     /// <returns>A Result indicating success or failure with an error message.</returns>
-    internal Result<bool, MappingError> Map([MaybeNull] object source, [MaybeNull] object target)
+    internal Result<bool, MappingError> Map([MaybeNull] object source, [MaybeNull] object target, Dictionary<object, object> mappingContext)
     {
         if (source == null)
             return Result<bool, MappingError>.Failure(new MappingError(
@@ -179,7 +180,7 @@ public  class Mapper
                     sourceValue.Match(
                         value =>
                         {
-                            if (SetMappedValue(target, targetMember, value) is { IsFailure: true } result)
+                            if (SetMappedValue(target, targetMember, value, mappingContext) is { IsFailure: true } result)
                                 throw new MappingException(result.Error);
                         },
                         mappingError =>
@@ -232,7 +233,8 @@ public  class Mapper
     /// <param name="target">The target object to set the source on.</param>
     /// <param name="targetMember">The target member to set the source to.</param>
     /// <param name="source">The source object to set the target to.</param>
-    private Result<bool, MappingError> SetMappedValue(object target, MemberInfo targetMember, object? source)
+    /// <param name="mappingContext">Dictionary to track already mapped objects for circular reference handling.</param>
+    private Result<bool, MappingError> SetMappedValue(object target, MemberInfo targetMember, object? source, Dictionary<object, object> mappingContext)
     {
         if (source is null
             && !_options.CreateEmptyObjectsInsteadOfNull)
@@ -246,10 +248,10 @@ public  class Mapper
         //TODO: Add support for dynamic types like ExpandoObject
 
         if (TypeHelper.IsComplexType(targetMemberType) && TypeHelper.IsComplexType(valueType))
-            return _complexTypeMapper.HandleComplexType(target, targetMember, source);
+            return _complexTypeMapper.HandleComplexType(target, targetMember, source, mappingContext);
 
         if (TypeHelper.IsCollection(targetMemberType) && TypeHelper.IsCollection(valueType))
-            return _collectionMapper.HandleCollection(target, targetMember, source);
+            return _collectionMapper.HandleCollection(target, targetMember, source, mappingContext);
 
         Result<object, MappingError> conversionResult = _typeConverter.TryConvertValue(source, targetMemberType);
 

@@ -18,7 +18,6 @@ internal class ReferenceEqualityComparer : IEqualityComparer<object>
 internal class ComplexTypeMapper
 {
     private readonly Mapper _mapper;
-    private readonly Dictionary<object , object> _alreadyMappedObjects;
 
     /// <summary>
     /// Initializes a new instance of the ComplexTypeMapper class.
@@ -27,22 +26,16 @@ internal class ComplexTypeMapper
     internal ComplexTypeMapper(Mapper mapper)
     {
         _mapper = mapper;
-        _alreadyMappedObjects = new Dictionary<object, object>(new ReferenceEqualityComparer());
-    }
-    
-    internal void Reset()
-    {
-        _alreadyMappedObjects.Clear();
     }
     
     /// <summary>
-    /// Registers a source-to-target mapping to track circular references.
+    /// Creates a new mapping context dictionary for tracking circular references.
+    /// This should be created per mapping operation to ensure thread safety.
     /// </summary>
-    /// <param name="source">The source object.</param>
-    /// <param name="target">The target object.</param>
-    internal void RegisterMapping(object source, object target)
+    /// <returns>A new dictionary for tracking mapped objects.</returns>
+    internal Dictionary<object, object> CreateMappingContext()
     {
-        _alreadyMappedObjects[source] = target;
+        return new Dictionary<object, object>(new ReferenceEqualityComparer());
     }
     
     /// <summary>
@@ -51,16 +44,16 @@ internal class ComplexTypeMapper
     /// <param name="target">The target object to set the value on.</param>
     /// <param name="targetMember">The target member to set the value to.</param>
     /// <param name="value">The value to map.</param>
+    /// <param name="mappingContext">Dictionary to track already mapped objects for circular reference handling.</param>
     /// <returns>A Result indicating success or failure with an error message.</returns>
-    internal Result<bool, MappingError> HandleComplexType(object target, MemberInfo targetMember, object value)
+    internal Result<bool, MappingError> HandleComplexType(object target, MemberInfo targetMember, object value, Dictionary<object, object> mappingContext)
     {
         try
         {
             Type targetType = MemberAccessor.GetMemberType(targetMember);
 
             // Check if we've already mapped this object to prevent circular reference issues
-            // TODO: Fix circular reference issue, currently the results arent reference equal but value equal instead.
-            if (_alreadyMappedObjects.TryGetValue(value, out var existingTarget))
+            if (mappingContext.TryGetValue(value, out var existingTarget))
                 return MemberAccessor.SetMemberValue(target, targetMember, existingTarget);
             
             try
@@ -75,13 +68,13 @@ internal class ComplexTypeMapper
                         targetType.Name));
 
                 // Add the new instance to the mapped objects dictionary BEFORE mapping properties
-                _alreadyMappedObjects[value] = nestedTarget;
+                mappingContext[value] = nestedTarget;
 
                 // Set the new instance on the target object and check the result
                 var setResult = MemberAccessor.SetMemberValue(target, targetMember, nestedTarget);
                 return setResult.IsFailure 
                     ? Result<bool, MappingError>.Failure(setResult.Error) 
-                    : _mapper.Map(value, nestedTarget);  // Now map properties from source to the nested target
+                    : _mapper.Map(value, nestedTarget, mappingContext);  // Now map properties from source to the nested target
             }
             catch (Exception ex)
             {
