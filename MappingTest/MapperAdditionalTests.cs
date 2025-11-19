@@ -15,7 +15,7 @@ namespace MappingTest
             var child = new ChildWithCircularReference { Name = "Child", Parent = parent };
             parent.Child = child;
 
-            var mapper = new Mapper();
+            var mapper = Mapper.Default;
 
             // Act
             var result = mapper.Map<ParentWithCircularReference>(parent);
@@ -35,7 +35,7 @@ namespace MappingTest
             source.Name = "Test";
             source.Age = 30;
             
-            var mapper = new Mapper();
+            var mapper = Mapper.Default;
             
             // Act
             var result = mapper.Map<SimpleTarget>(source);
@@ -76,7 +76,7 @@ namespace MappingTest
         public async Task Map_ConcurrentAccess_ThreadSafe()
         {
             // Arrange
-            var mapper = new Mapper();
+            var mapper = Mapper.Default;
             var tasks = new List<Task<Result<SimpleTarget, MappingError>>>();
             
             // Act - Create multiple concurrent mapping operations
@@ -135,7 +135,7 @@ namespace MappingTest
                 CustomValue = new CustomValueType("advanced-mapping")
             };
             
-            var mapper = new Mapper();
+            var mapper = Mapper.Default;
             
             // Act - Use the new method that doesn't require a parameterless constructor
             var result = mapper.MapWithoutDefaultConstructor<TargetWithCustomType>(source);
@@ -152,7 +152,7 @@ namespace MappingTest
             // Arrange
             var source = new { Name = "Test Person", Age = 25, Email = "test@example.com" };
             
-            var mapper = new Mapper();
+            var mapper = Mapper.Default;
             
             // Act - PersonWithRequiredConstructor doesn't have a parameterless constructor
             var result = mapper.MapWithoutDefaultConstructor<PersonWithRequiredConstructor>(source);
@@ -175,7 +175,7 @@ namespace MappingTest
                 Items = [1, 2, 3]
             };
             
-            var mapper = new Mapper();
+            var mapper = Mapper.Default;
             
             // Act
             var result = mapper.Map<GenericTarget<int>>(source);
@@ -197,7 +197,7 @@ namespace MappingTest
                 Age = -5      // Age must be positive in the target
             };
             
-            var mapper = new Mapper();
+            var mapper = Mapper.Default;
             
             // Act
             var result = mapper.Map<ValidatedTarget>(source);

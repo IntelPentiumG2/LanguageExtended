@@ -35,11 +35,6 @@ public  class Mapper
     /// Gets the default instance of the Mapper.
     /// </summary>
     public static Mapper Default => DefaultInstance.Value;
-    
-    /// <summary>
-    /// Initializes a new instance of the Mapper class with default options.
-    /// </summary>
-    public Mapper() : this(new MappingOptions()) { }
 
     /// <summary>
     /// Initializes a new instance of the Mapper class with the specified options.
@@ -61,37 +56,9 @@ public  class Mapper
     /// <typeparam name="TTarget">The type of the target object.</typeparam>
     /// <param name="source">The source object to map from.</param>
     /// <returns>A Result containing the mapped target object or an error message.</returns>
-    public  Result<TTarget, MappingError> Map<TTarget>(object source) where TTarget : new()
+    public Result<TTarget, MappingError> Map<TTarget>(object source) where TTarget : new()
     {
-        if (source == null)
-            return Result<TTarget, MappingError>.Failure(new MappingError(
-                "Source cannot be null", 
-                MappingErrorType.NullReference));
-
-        try
-        {
-            // Create a new mapping context for this operation (thread-safe)
-            var mappingContext = _complexTypeMapper.CreateMappingContext();
-            
-            TTarget target = new TTarget();
-            
-            // Register the root mapping to handle circular references
-            mappingContext[source] = target;
-            
-            Result<bool, MappingError> mapResult = Map(source, target, mappingContext);
-
-            return mapResult.IsSuccess
-                ? Result<TTarget, MappingError>.Success(target)
-                : Result<TTarget, MappingError>.Failure(mapResult.Error);
-        }
-        catch (Exception ex)
-        {
-            return Result<TTarget, MappingError>.Failure(new MappingError(
-                "Mapping failed.", 
-                MappingErrorType.Other ,
-                "", 
-                ex));
-        }
+        return MapInternal<TTarget>(source, () => new TTarget());
     }
 
     /// <summary>
@@ -103,6 +70,20 @@ public  class Mapper
     /// <returns>A Result containing the mapped target object or an error message.</returns>
     public Result<TTarget, MappingError> MapWithoutDefaultConstructor<TTarget>(object source)
     {
+        return MapInternal<TTarget>(source, () =>
+        {
+            object? instance = ComplexTypeMapper.CreateInstanceAdvanced(typeof(TTarget));
+            if (instance == null)
+                throw new InvalidOperationException($"Failed to create instance of {typeof(TTarget).Name}");
+            return (TTarget)instance;
+        });
+    }
+
+    /// <summary>
+    /// Internal method that handles the common mapping logic for both Map methods.
+    /// </summary>
+    private Result<TTarget, MappingError> MapInternal<TTarget>(object source, Func<TTarget> targetFactory)
+    {
         if (source == null)
             return Result<TTarget, MappingError>.Failure(new MappingError(
                 "Source cannot be null", 
@@ -110,21 +91,9 @@ public  class Mapper
 
         try
         {
-            // Create a new mapping context for this operation (thread-safe)
             var mappingContext = _complexTypeMapper.CreateMappingContext();
+            TTarget target = targetFactory();
             
-            // Use the advanced CreateInstance method that doesn't require a parameterless constructor
-            object? targetObj = ComplexTypeMapper.CreateInstanceAdvanced(typeof(TTarget));
-            
-            if (targetObj == null)
-                return Result<TTarget, MappingError>.Failure(new MappingError(
-                    $"Failed to create instance of {typeof(TTarget).Name}",
-                    MappingErrorType.ComplexTypeMappingError,
-                    typeof(TTarget).Name));
-
-            TTarget target = (TTarget)targetObj;
-            
-            // Register the root mapping to handle circular references
             mappingContext[source] = target;
             
             Result<bool, MappingError> mapResult = Map(source, target, mappingContext);
@@ -137,7 +106,7 @@ public  class Mapper
         {
             return Result<TTarget, MappingError>.Failure(new MappingError(
                 "Mapping failed.", 
-                MappingErrorType.Other ,
+                MappingErrorType.Other,
                 "", 
                 ex));
         }
@@ -164,56 +133,17 @@ public  class Mapper
 
         try
         {
-            // Handle dynamic objects
-            //TODO: Change this to be more in line with the rest of the code
             if (source is IDynamicMetaObjectProvider)
                 return _dynamicObjectMapper.MapDynamicObject(source, target);
 
             foreach (MemberInfo targetMember in _memberAccessor.GetTargetMembers(target.GetType()))
             {
-                Option<MemberInfo> sourceMemberOption = _memberAccessor.FindSourceMember(source.GetType(), targetMember.Name);
-
-                sourceMemberOption.Match(
-                sourceMember =>
-                {
-                    Result<object?, MappingError> sourceValue = MemberAccessor.GetMemberValue(source, sourceMember);
-                    sourceValue.Match(
-                        value =>
-                        {
-                            if (SetMappedValue(target, targetMember, value, mappingContext) is { IsFailure: true } result)
-                                throw new MappingException(result.Error);
-                        },
-                        mappingError =>
-                        {
-                            if (!_options.IgnoreUnmappedTargetMembers)
-                                throw new MappingException(mappingError);
-
-                            if (!TypeHelper.IsComplexType(MemberAccessor.GetMemberType(targetMember)))
-                                return;
-                            
-                            if (ComplexTypeMapper.CreateAndSetComplexType(target, targetMember) is { IsFailure: true } result)
-                                throw new MappingException(new MappingError(
-                                    $"Failed to initialize '{targetMember.Name}': {result.Error}",
-                                    MappingErrorType.ComplexTypeMappingError,
-                                    targetMember.Name));
-                        }
-                    );
-                },
-                () =>
-                {
-                    if (!_options.IgnoreUnmappedTargetMembers)
-                        throw new MappingException(new MappingError(
-                            $"Failed to find source member for '{targetMember.Name}'",
-                            MappingErrorType.MemberNotFound,
-                            targetMember.Name));
-                });
+                Result<bool, MappingError> memberResult = MapSingleMember(source, target, targetMember, mappingContext);
+                if (memberResult.IsFailure)
+                    return memberResult;
             }
 
             return Result<bool, MappingError>.Success(true);
-        }
-        catch (MappingException ex)
-        {
-            return Result<bool, MappingError>.Failure(ex.MappingError);
         }
         catch (Exception ex)
         {
@@ -224,35 +154,74 @@ public  class Mapper
                 ex));
         }
     }
+
+    /// <summary>
+    /// Maps a single member from source to target.
+    /// </summary>
+    private Result<bool, MappingError> MapSingleMember(object source, object target, MemberInfo targetMember, Dictionary<object, object> mappingContext)
+    {
+        Option<MemberInfo> sourceMemberOption = _memberAccessor.FindSourceMember(source.GetType(), targetMember.Name);
+
+        if (sourceMemberOption.IsNone)
+        {
+            if (!_options.IgnoreUnmappedTargetMembers)
+                return Result<bool, MappingError>.Failure(new MappingError(
+                    $"Failed to find source member for '{targetMember.Name}'",
+                    MappingErrorType.MemberNotFound,
+                    targetMember.Name));
+            
+            return Result<bool, MappingError>.Success(true);
+        }
+
+        MemberInfo sourceMember = sourceMemberOption.Value;
+        Result<object?, MappingError> sourceValueResult = MemberAccessor.GetMemberValue(source, sourceMember);
+
+        if (!sourceValueResult.IsFailure)
+            return SetMappedValue(target, targetMember, sourceValueResult.Value, mappingContext);
+        
+        if (!_options.IgnoreUnmappedTargetMembers)
+            return sourceValueResult.Map(_ => true);
+
+        if (TypeHelper.IsComplexType(MemberAccessor.GetMemberType(targetMember)))
+        {
+            return ComplexTypeMapper.CreateAndSetComplexType(target, targetMember)
+                .MapError(error => new MappingError(
+                    $"Failed to initialize '{targetMember.Name}': {error}",
+                    MappingErrorType.ComplexTypeMappingError,
+                    targetMember.Name));
+        }
+
+        return Result<bool, MappingError>.Success(true);
+
+    }
     
 
 
     /// <summary>
-    /// Sets the mapped source to the target member.
+    /// Sets the mapped source value to the target member.
     /// </summary>
-    /// <param name="target">The target object to set the source on.</param>
-    /// <param name="targetMember">The target member to set the source to.</param>
-    /// <param name="source">The source object to set the target to.</param>
+    /// <param name="target">The target object to set the value on.</param>
+    /// <param name="targetMember">The target member to set the value to.</param>
+    /// <param name="source">The source value to map.</param>
     /// <param name="mappingContext">Dictionary to track already mapped objects for circular reference handling.</param>
     private Result<bool, MappingError> SetMappedValue(object target, MemberInfo targetMember, object? source, Dictionary<object, object> mappingContext)
     {
-        if (source is null
-            && !_options.CreateEmptyObjectsInsteadOfNull)
-        {
+        // Handle null source values
+        if (source is null && !_options.CreateEmptyObjectsInsteadOfNull)
             return MemberAccessor.SetMemberValue(target, targetMember, null);
-        }
         
         Type targetMemberType = MemberAccessor.GetMemberType(targetMember);
-        Type valueType = source.GetType();
-        
-        //TODO: Add support for dynamic types like ExpandoObject
+        Type valueType = source!.GetType();
 
+        // Handle complex types
         if (TypeHelper.IsComplexType(targetMemberType) && TypeHelper.IsComplexType(valueType))
             return _complexTypeMapper.HandleComplexType(target, targetMember, source, mappingContext);
 
+        // Handle collections
         if (TypeHelper.IsCollection(targetMemberType) && TypeHelper.IsCollection(valueType))
             return _collectionMapper.HandleCollection(target, targetMember, source, mappingContext);
 
+        // Handle primitive type conversion
         Result<object, MappingError> conversionResult = _typeConverter.TryConvertValue(source, targetMemberType);
 
         if (conversionResult.IsSuccess) 

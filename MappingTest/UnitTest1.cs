@@ -10,7 +10,7 @@ public class MapperTests
     public void Map_PrimitiveTypes_Success()
     {
         var source = new { Id = 1, Name = "Test" };
-        var mapper = new Mapper();
+        var mapper = Mapper.Default;
 
         var result = mapper.Map<Destination>(source);
 
@@ -22,19 +22,19 @@ public class MapperTests
     [Fact]
     public void Map_NullSource_Failure()
     {
-        var mapper = new Mapper();
+        var mapper = Mapper.Default;
 
         var result = mapper.Map<Destination>(null);
 
         Assert.False(result.IsSuccess);
-        // Assert.Equal("Source cannot be null", result.Error);
+        Assert.Equal(MappingErrorType.NullReference, result.Error.ErrorType);
     }
 
     [Fact]
     public void Map_ComplexType_Success()
     {
         var source = new { Id = 1, Nested = new { Value = "NestedValue" } };
-        var mapper = new Mapper();
+        var mapper = Mapper.Default;
 
         var result = mapper.Map<ComplexDestination>(source);
 
@@ -47,7 +47,7 @@ public class MapperTests
     public void Map_Collection_Success()
     {
         var source = new { Items = new[] { "Item1", "Item2" } };
-        var mapper = new Mapper();
+        var mapper = Mapper.Default;
 
         var result = mapper.Map<CollectionDestination>(source);
 
@@ -61,7 +61,7 @@ public class MapperTests
     public void Map_EnumConversion_Success()
     {
         var source = new { Status = "Active" };
-        var mapper = new Mapper();
+        var mapper = Mapper.Default;
 
         var result = mapper.Map<EnumDestination>(source);
 
@@ -73,7 +73,7 @@ public class MapperTests
     public void Map_InvalidEnumConversion_Failure()
     {
         var source = new { Status = "Invalid" };
-        var mapper = new Mapper();
+        var mapper = Mapper.Default;
 
         var result = mapper.Map<EnumDestination>(source);
 
@@ -91,7 +91,7 @@ public class MapperTests
                 SubNested = new { Value = "SubNestedValue" }
             }
         };
-        var mapper = new Mapper();
+        var mapper = Mapper.Default;
 
         var result = mapper.Map<ComplexNestedDestination>(source);
 
@@ -140,7 +140,7 @@ public class MapperTests
                 new { Value = "Item2" } 
             }
         };
-        var mapper = new Mapper();
+        var mapper = Mapper.Default;
 
         var result = mapper.Map<ComplexCollectionDestination>(source);
 
@@ -191,7 +191,7 @@ public class MapperTests
     public void Map_ListToArray_Success()
     {
         var source = new { Items = new List<string> { "Item1", "Item2" } };
-        var mapper = new Mapper();
+        var mapper = Mapper.Default;
 
         var result = mapper.Map<CollectionDestination>(source);
 
@@ -205,7 +205,7 @@ public class MapperTests
     public void Map_ArrayToList_Success()
     {
         var source = new { Items = new[] { "Item1", "Item2" } };
-        var mapper = new Mapper();
+        var mapper = Mapper.Default;
 
         var result = mapper.Map<ListCollectionDestination>(source);
 
@@ -219,7 +219,7 @@ public class MapperTests
     public void Map_WithFields_Success()
     {
         var source = new ClassWithFields { Id = 1, Name = "Test" };
-        var mapper = new Mapper();
+        var mapper = Mapper.Default;
 
         var result = mapper.Map<ClassWithFields>(source);
 
@@ -232,7 +232,7 @@ public class MapperTests
     public void Map_WithReadOnlyProperties_OnlyMapsWritableProperties()
     {
         var source = new { Id = 1, Name = "Test", ReadOnly = "ReadOnly" };
-        var mapper = new Mapper();
+        var mapper = Mapper.Default;
 
         var result = mapper.Map<ClassWithReadOnlyProperty>(source);
 
@@ -246,7 +246,7 @@ public class MapperTests
     public void Map_TypeConversion_Success()
     {
         var source = new { IntValue = "42", DoubleValue = 3.14f, BoolValue = 1 };
-        var mapper = new Mapper();
+        var mapper = Mapper.Default;
 
         var result = mapper.Map<TypeConversionDestination>(source);
 
@@ -263,7 +263,7 @@ public class MapperTests
             { "Key1", "Value1" },
             { "Key2", "Value2" }
         }};
-        var mapper = new Mapper();
+        var mapper = Mapper.Default;
 
         var result = mapper.Map<DictionaryCollectionDestination>(source);
 
@@ -277,7 +277,7 @@ public class MapperTests
     public void Map_InterfaceCollection_Success()
     {
         var source = new { Items = new List<string> { "Item1", "Item2" } };
-        var mapper = new Mapper();
+        var mapper = Mapper.Default;
 
         var result = mapper.Map<InterfaceCollectionDestination>(source);
 
@@ -329,7 +329,7 @@ public class MapperTests
     public void Map_ComplexNestedTypesWithNullValues_Success()
     {
         var source = new { Id = 1, Nested = (object?)null };
-        var mapper = new Mapper();
+        var mapper = Mapper.Default;
 
         var result = mapper.Map<ComplexDestination>(source);
 
@@ -342,7 +342,7 @@ public class MapperTests
     public void Map_CollectionsWithNullValues_Success()
     {
         var source = new { Items = new[] { "Item1", null, "Item2" } };
-        var mapper = new Mapper();
+        var mapper = Mapper.Default;
 
         var result = mapper.Map<CollectionDestination>(source);
 
@@ -357,7 +357,7 @@ public class MapperTests
     public void Map_ReadOnlyProperties_Success()
     {
         var source = new { Id = 1, Name = "Test", ReadOnly = "ReadOnly" };
-        var mapper = new Mapper();
+        var mapper = Mapper.Default;
 
         var result = mapper.Map<ClassWithReadOnlyProperty>(source);
 
