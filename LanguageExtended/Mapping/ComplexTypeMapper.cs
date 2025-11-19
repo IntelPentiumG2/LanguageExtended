@@ -33,7 +33,7 @@ internal class ComplexTypeMapper
     /// This should be created per mapping operation to ensure thread safety.
     /// </summary>
     /// <returns>A new dictionary for tracking mapped objects.</returns>
-    internal Dictionary<object, object> CreateMappingContext()
+    internal static Dictionary<object, object> CreateMappingContext()
     {
         return new Dictionary<object, object>(new ReferenceEqualityComparer());
     }
@@ -71,10 +71,10 @@ internal class ComplexTypeMapper
                 mappingContext[value] = nestedTarget;
 
                 // Set the new instance on the target object and check the result
-                var setResult = MemberAccessor.SetMemberValue(target, targetMember, nestedTarget);
+                Result<bool, MappingError> setResult = MemberAccessor.SetMemberValue(target, targetMember, nestedTarget);
                 return setResult.IsFailure 
                     ? Result<bool, MappingError>.Failure(setResult.Error) 
-                    : _mapper.Map(value, nestedTarget, mappingContext);  // Now map properties from source to the nested target
+                    : _mapper.Map(value, nestedTarget, mappingContext);
             }
             catch (Exception ex)
             {
@@ -159,7 +159,7 @@ internal class ComplexTypeMapper
             }
 
             // Strategy 3: Use FormatterServices to create an uninitialized object (last resort)
-            // This works even without any constructor but should be used carefully
+            // This works even without any constructor but should be used carefully because it skips constructor logic
             return type is { IsAbstract: false, IsInterface: false } ? RuntimeHelpers.GetUninitializedObject(type) : null;
         }
         catch
@@ -168,7 +168,7 @@ internal class ComplexTypeMapper
         }
     }
 
-/// <summary>
+    /// <summary>
     /// Creates a new instance of a complex type and sets it to the specified member of the target object.
     /// </summary>
     /// <param name="target">The target object on which to set the new instance.</param>
@@ -187,8 +187,7 @@ internal class ComplexTypeMapper
                     MappingErrorType.ComplexTypeMappingError,
                     targetType.Name));
             
-            var setResult = MemberAccessor.SetMemberValue(target, targetMember, instance);
-            return setResult;
+            return MemberAccessor.SetMemberValue(target, targetMember, instance);
         }
         catch (Exception ex)
         {

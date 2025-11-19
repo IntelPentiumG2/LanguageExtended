@@ -71,7 +71,7 @@ internal class DynamicObjectMapper
         }
     }
 
-    private IDictionary<string, object?> GetDynamicProperties(object source)
+    private static IDictionary<string, object?> GetDynamicProperties(object source)
     {
         if (source is IDictionary<string, object> dict)
             return dict;

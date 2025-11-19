@@ -54,8 +54,6 @@ internal class TypeConverter(bool ignoreCase = false, CultureInfo? culture = nul
                                     || t == typeof(long?):
                         return Result<object, MappingError>.Success(long.Parse(stringValue, culture));
                     
-                    
-                    
                     case { } t when t == typeof(DateTime) 
                                     || t == typeof(DateTime?):
                         return Result<object, MappingError>.Success(DateTime.Parse(stringValue, culture));
@@ -86,8 +84,7 @@ internal class TypeConverter(bool ignoreCase = false, CultureInfo? culture = nul
                 && value is IFormattable formattableValue)
                 return Result<object, MappingError>.Success(formattableValue.ToString(null, culture));
             
-            object converted = Convert.ChangeType(value, targetType);
-            return Result<object, MappingError>.Success(converted);
+            return Result<object, MappingError>.Success(Convert.ChangeType(value, targetType));
             
         }
         catch (Exception ex)

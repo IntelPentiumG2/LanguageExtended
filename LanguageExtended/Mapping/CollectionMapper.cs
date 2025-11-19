@@ -21,6 +21,8 @@ internal class CollectionMapper
     /// </summary>
     /// <param name="typeHelper">The Helper</param>
     /// <param name="mapper">The Mapper</param>
+    /// <param name="typeConverter">The <see cref="TypeConverter"/> to use for conversions</param>
+    /// <param name="createEmptyObjectsInsteadOfNull">If empty objects should be created instead of null</param>
     internal CollectionMapper(Mapper mapper, TypeHelper typeHelper, TypeConverter typeConverter, bool createEmptyObjectsInsteadOfNull = false)
     {
         _typeHelper = typeHelper;

@@ -32,7 +32,7 @@ internal class MemberAccessor
     /// Gets the writable properties and non-readonly fields of the target type.
     /// </summary>
     /// <param name="targetType">The type of the target object.</param>
-    /// <returns>An enumerable of MemberInfo representing the writable properties and fields.</returns>
+    /// <returns>An IEnumerable of MemberInfo representing the writable properties and fields.</returns>
     internal IEnumerable<MemberInfo> GetTargetMembers(Type targetType)
     {
         // Get writable properties
