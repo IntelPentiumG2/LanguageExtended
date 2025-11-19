@@ -91,9 +91,14 @@ public  class Mapper
 
         try
         {
-            var mappingContext = _complexTypeMapper.CreateMappingContext();
-            TTarget target = targetFactory();
+            if (targetFactory() is not { } target)
+            {
+                return Result<TTarget, MappingError>.Failure(new MappingError(
+                    "Failed to create target instance", 
+                    MappingErrorType.GeneralMappingError));
+            }
             
+            var mappingContext = _complexTypeMapper.CreateMappingContext();
             mappingContext[source] = target;
             
             Result<bool, MappingError> mapResult = Map(source, target, mappingContext);
@@ -192,7 +197,6 @@ public  class Mapper
         }
 
         return Result<bool, MappingError>.Success(true);
-
     }
     
 
@@ -211,7 +215,7 @@ public  class Mapper
             return MemberAccessor.SetMemberValue(target, targetMember, null);
         
         Type targetMemberType = MemberAccessor.GetMemberType(targetMember);
-        Type valueType = source!.GetType();
+        Type valueType = source.GetType();
 
         // Handle complex types
         if (TypeHelper.IsComplexType(targetMemberType) && TypeHelper.IsComplexType(valueType))
