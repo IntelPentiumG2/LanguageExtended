@@ -14,7 +14,6 @@ internal class CollectionMapper
     private readonly TypeHelper _typeHelper;
     private readonly TypeConverter _typeConverter;
     private readonly Mapper _mapper;
-    private readonly bool _createEmptyObjectsInsteadOfNull;
 
     /// <summary>
     /// Initializes a new instance of the CollectionMapper class.
@@ -28,7 +27,6 @@ internal class CollectionMapper
         _typeHelper = typeHelper;
         _mapper = mapper;
         _typeConverter = typeConverter;
-        _createEmptyObjectsInsteadOfNull = createEmptyObjectsInsteadOfNull;
     }
     
         /// <summary>
