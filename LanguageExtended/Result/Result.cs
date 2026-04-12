@@ -1,4 +1,4 @@
-﻿// ReSharper disable UnusedMember.Global
+// ReSharper disable UnusedMember.Global
 namespace LanguageExtended.Result;
 
 /// <summary>
@@ -39,7 +39,7 @@ public readonly struct Result<T, TError> : IEquatable<Result<T, TError>>
     /// </summary>
     /// <exception cref="InvalidOperationException">Thrown if the result is a success.</exception>
     public TError Error => IsFailure ? _error! : throw new InvalidOperationException("Result is a success.");
-    
+
     /// <summary>
     /// Tries to get the value of the result if it is a success.
     /// </summary>
@@ -50,7 +50,7 @@ public readonly struct Result<T, TError> : IEquatable<Result<T, TError>>
         value = _value;
         return IsSuccess;
     }
-    
+
     /// <summary>
     /// Tries to get the error of the result if it is a failure.
     /// </summary>
@@ -84,7 +84,7 @@ public readonly struct Result<T, TError> : IEquatable<Result<T, TError>>
     /// <returns>A new result containing the transformed value if the current result is a success; otherwise, a failed result with the same error.</returns>
     public Result<TResult, TError> Map<TResult>(Func<T, TResult> map) =>
         IsSuccess ? Result<TResult, TError>.Success(map(_value!)) : Result<TResult, TError>.Failure(_error!);
-    
+
     /// <summary>
     /// Matches the result to one of the provided functions.
     /// </summary>
@@ -96,7 +96,7 @@ public readonly struct Result<T, TError> : IEquatable<Result<T, TError>>
     /// </returns>
     public T Match(Func<T, T> onSuccess, Func<TError, T> onFailure) =>
         IsSuccess ? onSuccess(_value!) : onFailure(_error!);
-    
+
     /// <summary>
     /// Executes one of the provided actions based on whether the result is a success or failure.
     /// </summary>
@@ -118,7 +118,41 @@ public readonly struct Result<T, TError> : IEquatable<Result<T, TError>>
     /// <returns>A new result containing the transformed error if the current result is a failure; otherwise, a successful result with the same value.</returns>
     public Result<T, TResultError> MapError<TResultError>(Func<TError, TResultError> map) =>
         IsFailure ? Result<T, TResultError>.Failure(map(_error!)) : Result<T, TResultError>.Success(_value!);
-    
+
+    /// <summary>
+    /// Chains a function that returns a new Result, passing through the current error if this Result is a failure.
+    /// Use this to compose operations where each step may fail.
+    /// </summary>
+    /// <typeparam name="TResult">The value type of the resulting Result.</typeparam>
+    /// <param name="bind">A function that takes the success value and returns a new Result.</param>
+    /// <returns>The Result returned by <paramref name="bind"/> if this is a success; otherwise, a failure with the current error.</returns>
+    public Result<TResult, TError> Bind<TResult>(Func<T, Result<TResult, TError>> bind) =>
+        IsSuccess ? bind(_value!) : Result<TResult, TError>.Failure(_error!);
+
+    /// <summary>
+    /// Returns the success value if this Result is a success; otherwise, returns <paramref name="defaultValue"/>.
+    /// </summary>
+    /// <param name="defaultValue">The fallback value to return on failure.</param>
+    /// <returns>The success value or <paramref name="defaultValue"/>.</returns>
+    public T Reduce(T defaultValue) => IsSuccess ? _value! : defaultValue;
+
+    /// <summary>
+    /// Returns the success value if this Result is a success; otherwise, invokes <paramref name="fallback"/> with the error.
+    /// </summary>
+    /// <param name="fallback">A function that produces a fallback value from the error.</param>
+    /// <returns>The success value or the result of <paramref name="fallback"/>.</returns>
+    public T Reduce(Func<TError, T> fallback) => IsSuccess ? _value! : fallback(_error!);
+
+    /// <summary>
+    /// Validates the success value against a predicate. If the predicate fails, converts the result to a failure.
+    /// Has no effect if this Result is already a failure.
+    /// </summary>
+    /// <param name="predicate">A function to test the success value.</param>
+    /// <param name="error">The error to use if the predicate fails.</param>
+    /// <returns>The current Result if successful and predicate passes; otherwise, a failure with <paramref name="error"/>.</returns>
+    public Result<T, TError> Ensure(Func<T, bool> predicate, TError error) =>
+        IsSuccess && !predicate(_value!) ? Failure(error) : this;
+
     /// <summary>
     /// Implicitly converts a value of type <typeparamref name="T"/> to a successful <see cref="Result{T, TError}"/>.
     /// </summary>

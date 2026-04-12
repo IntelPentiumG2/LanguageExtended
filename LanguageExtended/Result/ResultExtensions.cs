@@ -1,5 +1,7 @@
-﻿// ReSharper disable UnusedMember.Global
+// ReSharper disable UnusedMember.Global
 // ReSharper disable UnusedMethodReturnValue.Global
+using LanguageExtended.Option;
+
 namespace LanguageExtended.Result;
 
 /// <summary>
@@ -7,7 +9,6 @@ namespace LanguageExtended.Result;
 /// </summary>
 public static class ResultExtensions
 {
-    
     /// <summary>
     /// Executes the provided action if the result is a failure, then returns the original result.
     /// </summary>
@@ -22,8 +23,7 @@ public static class ResultExtensions
             action(result.Error);
         return result;
     }
-    
-    
+
     /// <summary>
     /// Executes the provided action if the result is a success, then returns the original result.
     /// </summary>
@@ -38,4 +38,13 @@ public static class ResultExtensions
             action(result.Value);
         return result;
     }
+
+    /// <summary>
+    /// Converts a <see cref="Result{T, TError}"/> to an <see cref="Option{T}"/>.
+    /// A successful result becomes Some; a failed result becomes None.
+    /// </summary>
+    /// <typeparam name="T">The success value type (must be a reference type).</typeparam>
+    /// <typeparam name="TError">The error value type.</typeparam>
+    public static Option<T> ToOption<T, TError>(this Result<T, TError> result) where T : class =>
+        result.IsSuccess ? Option<T>.Some(result.Value) : Option<T>.None();
 }

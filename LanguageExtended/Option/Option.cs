@@ -1,4 +1,6 @@
-﻿using System.Diagnostics.CodeAnalysis;
+using System.Collections;
+using System.Diagnostics.CodeAnalysis;
+using LanguageExtended.Result;
 
 namespace LanguageExtended.Option;
 
@@ -6,7 +8,7 @@ namespace LanguageExtended.Option;
 /// Represents an optional value that may or may not have a value.
 /// </summary>
 /// <typeparam name="T"> The type of the value of the Option </typeparam>
-public readonly struct Option<T>  : IEquatable<Option<T>> where T : class
+public readonly struct Option<T> : IEquatable<Option<T>>, IEnumerable<T> where T : class
 {
     private readonly T? _value;
 
@@ -15,7 +17,7 @@ public readonly struct Option<T>  : IEquatable<Option<T>> where T : class
     /// </summary>
     /// <param name="value"> The value of the Option object </param>
     private Option(T? value) => _value = value;
-    
+
     /// <summary>
     /// Factory method to create an Option with a value
     /// </summary>
@@ -27,12 +29,12 @@ public readonly struct Option<T>  : IEquatable<Option<T>> where T : class
     /// </summary>
     /// <returns>A new empty Option object</returns>
     public static Option<T> None() => new(null);
-    
+
     /// <summary>
     /// Indicates whether the current Option has a value.
     /// </summary>
     public bool IsSome => _value is not null;
-    
+
     /// <summary>
     /// Trys to get the value of the current Option.
     /// </summary>
@@ -43,30 +45,30 @@ public readonly struct Option<T>  : IEquatable<Option<T>> where T : class
         value = _value;
         return IsSome;
     }
-    
+
     /// <summary>
     /// Gets the value of the Option if it has a value; otherwise, throws an InvalidOperationException.
     /// </summary>
     /// <exception cref="InvalidOperationException">Thrown if the Option has no value.</exception>
     public T Value => _value ?? throw new InvalidOperationException("Option has no value");
-    
+
     /// <summary>
     /// Indicates whether the current Option has no value.
     /// </summary>
     public bool IsNone => _value is null;
-    
+
     /// <summary>
     /// Maps the value of the current Option to a new Option using the provided mapping function.
     /// </summary>
     /// <typeparam name="TResult">The type of the value in the resulting Option.</typeparam>
     /// <param name="map">A function to transform the value of the current Option.</param>
     /// <returns>
-    /// A new Option containing the transformed value if the current Option has a value; 
+    /// A new Option containing the transformed value if the current Option has a value;
     /// otherwise, an empty Option of type TResult.
     /// </returns>
-    public Option<TResult> Map<TResult>(Func<T, TResult> map) where TResult : class => 
+    public Option<TResult> Map<TResult>(Func<T, TResult> map) where TResult : class =>
         _value is null ? Option<TResult>.None() : Option<TResult>.Some(map(_value));
-    
+
     /// <summary>
     /// Maps the value of the current Option to a new Option using the provided mapping function that returns an Option.
     /// </summary>
@@ -78,9 +80,9 @@ public readonly struct Option<T>  : IEquatable<Option<T>> where T : class
     /// </returns>
     public Option<TResult> MapOptional<TResult>(Func<T, Option<TResult>> map) where TResult : class =>
         _value is null ? Option<TResult>.None() : map(_value);
-    
+
     /// <summary>
-    /// Matches the value of the current Option to one of the provided functions.
+    /// Matches the value of the current Option to one of the provided functions, returning the same type as the Option value.
     /// </summary>
     /// <param name="onSome">A function to call if the Option has a value.</param>
     /// <param name="onNone">A function to call if the Option has no value.</param>
@@ -89,7 +91,18 @@ public readonly struct Option<T>  : IEquatable<Option<T>> where T : class
     /// otherwise, the result of the <paramref name="onNone"/> function.
     /// </returns>
     public T Match(Func<T, T> onSome, Func<T> onNone) => _value is null ? onNone() : onSome(_value);
-    
+
+    /// <summary>
+    /// Maps the value of the current Option to a result of a different type using the provided functions.
+    /// Unlike <see cref="Match(Func{T,T},Func{T})"/>, this overload allows the result to differ from <typeparamref name="T"/>.
+    /// </summary>
+    /// <typeparam name="TResult">The type of the result.</typeparam>
+    /// <param name="onSome">A function to call with the value if the Option has a value.</param>
+    /// <param name="onNone">A function to call if the Option has no value.</param>
+    /// <returns>The result of <paramref name="onSome"/> or <paramref name="onNone"/>.</returns>
+    public TResult Match<TResult>(Func<T, TResult> onSome, Func<TResult> onNone) =>
+        _value is null ? onNone() : onSome(_value);
+
     /// <summary>
     /// Matches the value of the current Option to one of the provided actions.
     /// </summary>
@@ -102,7 +115,7 @@ public readonly struct Option<T>  : IEquatable<Option<T>> where T : class
         else
             onSome(_value);
     }
-    
+
     /// <summary>
     /// Performs the specified action with the value if the option has a value.
     /// </summary>
@@ -114,7 +127,7 @@ public readonly struct Option<T>  : IEquatable<Option<T>> where T : class
             action(_value);
         return this;
     }
-    
+
     /// <summary>
     /// Performs the specified action if the option has no value.
     /// </summary>
@@ -126,7 +139,7 @@ public readonly struct Option<T>  : IEquatable<Option<T>> where T : class
             action();
         return this;
     }
-    
+
     /// <summary>
     /// Returns the value of the current Option if it has a value; otherwise, returns the specified default value.
     /// </summary>
@@ -139,7 +152,7 @@ public readonly struct Option<T>  : IEquatable<Option<T>> where T : class
     /// <param name="defaultValue">A function that produces the default value to return if the Option has no value.</param>
     /// <returns>The value of the current Option if it has a value; otherwise, the value produced by the specified function.</returns>
     public T Reduce(Func<T> defaultValue) => _value ?? defaultValue();
-    
+
     /// <summary>
     /// Filters the current Option based on the provided predicate.
     /// </summary>
@@ -149,7 +162,7 @@ public readonly struct Option<T>  : IEquatable<Option<T>> where T : class
     /// otherwise, an empty Option.
     /// </returns>
     public Option<T> Where(Func<T, bool> predicate) => _value is null || !predicate(_value) ? None() : this;
-    
+
     /// <summary>
     /// Filters the current Option based on the provided predicate, returning the Option if the predicate is not satisfied.
     /// </summary>
@@ -159,7 +172,46 @@ public readonly struct Option<T>  : IEquatable<Option<T>> where T : class
     /// otherwise, an empty Option.
     /// </returns>
     public Option<T> WhereNot(Func<T, bool> predicate) => _value is null || predicate(_value) ? None() : this;
-    
+
+    /// <summary>
+    /// Returns the current Option if it has a value; otherwise, returns the alternative Option.
+    /// </summary>
+    /// <param name="other">The alternative Option to return if this Option has no value.</param>
+    /// <returns>The current Option if it has a value; otherwise, <paramref name="other"/>.</returns>
+    public Option<T> OrElse(Option<T> other) => _value is not null ? this : other;
+
+    /// <summary>
+    /// Returns the current Option if it has a value; otherwise, invokes the factory and returns its result.
+    /// </summary>
+    /// <param name="other">A factory that produces the alternative Option.</param>
+    /// <returns>The current Option if it has a value; otherwise, the result of <paramref name="other"/>.</returns>
+    public Option<T> OrElse(Func<Option<T>> other) => _value is not null ? this : other();
+
+    /// <summary>
+    /// Converts the current Option to a <see cref="Result{T,TError}"/>.
+    /// Returns a successful result if the Option has a value; otherwise, returns a failure with the provided error.
+    /// </summary>
+    /// <typeparam name="TError">The error type.</typeparam>
+    /// <param name="error">The error to use when the Option has no value.</param>
+    /// <returns>A successful result containing the value, or a failed result with <paramref name="error"/>.</returns>
+    public Result<T, TError> ToResult<TError>(TError error) =>
+        _value is null ? Result<T, TError>.Failure(error) : Result<T, TError>.Success(_value);
+
+    /// <summary>
+    /// Returns the value as a nullable reference, or null if there is no value.
+    /// </summary>
+    /// <returns>The value if present; otherwise null.</returns>
+    public T? ToNullable() => _value;
+
+    /// <inheritdoc />
+    public IEnumerator<T> GetEnumerator()
+    {
+        if (_value is not null)
+            yield return _value;
+    }
+
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
     /// <summary>
     /// Explicitly converts a nullable value of type T to an Option&lt;T&gt;.
     /// </summary>
@@ -170,16 +222,16 @@ public readonly struct Option<T>  : IEquatable<Option<T>> where T : class
     /// - If the input is not null, returns Some with the input value.
     /// </returns>
     public static explicit operator Option<T>(T? value) => value is null ? None() : Some(value);
-    
+
     /// <inheritdoc />
     public override int GetHashCode() => _value?.GetHashCode() ?? 0;
     /// <inheritdoc />
     public override bool Equals(object? obj) => obj is Option<T> other && Equals(other);
-    
+
     /// <inheritdoc />
     public bool Equals(Option<T> other) => _value?.Equals(other._value) ?? other._value is null;
-    
-    
+
+
     /// <summary>
     /// Determines whether two specified Option objects have the same value.
     /// </summary>
