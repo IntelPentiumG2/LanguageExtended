@@ -26,7 +26,7 @@ internal class DynamicObjectMapper
 
             foreach (MemberInfo targetMember in targetMembers)
             {
-                if (dynamicProps.TryGetValue(targetMember.Name, out var value))
+                if (dynamicProps.TryGetValue(targetMember.Name, out object? value))
                 {
                     // If the source value is null, assign null
                     if (value == null)
@@ -38,10 +38,10 @@ internal class DynamicObjectMapper
                     else
                     {
                         Type targetType = MemberAccessor.GetMemberType(targetMember);
-                        var conversionResult = _typeConverter.TryConvertValue(value, targetType);
+                        Result<object, MappingError> conversionResult = _typeConverter.TryConvertValue(value, targetType);
                         if (conversionResult.IsSuccess)
                         {
-                            var setResult = MemberAccessor.SetMemberValue(target, targetMember, conversionResult.Value);
+                            Result<bool, MappingError> setResult = MemberAccessor.SetMemberValue(target, targetMember, conversionResult.Value);
                             if (setResult.IsFailure && !_options.LenientMappingErrors)
                                 return Result<bool, MappingError>.Failure(setResult.Error);
                         }
@@ -79,10 +79,10 @@ internal class DynamicObjectMapper
         if (source is IDictionary<string, object?> dictNullable)
             return dictNullable;
 
-        var result = new Dictionary<string, object?>();
+        Dictionary<string, object?> result = new Dictionary<string, object?>();
         if (source is IDynamicMetaObjectProvider)
         {
-            var props = source.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance);
+            PropertyInfo[] props = source.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance);
             foreach (PropertyInfo prop in props)
                 result[prop.Name] = prop.GetValue(source);
         }

@@ -72,7 +72,7 @@ internal class CollectionMapper
                 }
                 else
                 {
-                    var conversionResult = _typeConverter.TryConvertValue(item, elementType);
+                    Result<object, MappingError> conversionResult = _typeConverter.TryConvertValue(item, elementType);
                     if (conversionResult.IsSuccess)
                     {
                         mappedItems.Add(conversionResult.Value);
@@ -139,7 +139,7 @@ internal class CollectionMapper
             Type valueType = genericArgs[1];
             IDictionary sourceDictionary = (IDictionary)value;
 
-            var dictionaryResult = TryCreateDictionary(collectionType, keyType, valueType);
+            Result<IDictionary, MappingError> dictionaryResult = TryCreateDictionary(collectionType, keyType, valueType);
             if (dictionaryResult.IsFailure)
                 return Result<bool, MappingError>.Failure(dictionaryResult.Error);
 

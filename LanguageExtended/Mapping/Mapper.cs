@@ -98,7 +98,7 @@ public  class Mapper
                     MappingErrorType.GeneralMappingError));
             }
             
-            var mappingContext = ComplexTypeMapper.CreateMappingContext();
+            Dictionary<object, object> mappingContext = ComplexTypeMapper.CreateMappingContext();
             mappingContext[source] = target;
             
             Result<bool, MappingError> mapResult = Map(source, target, mappingContext);

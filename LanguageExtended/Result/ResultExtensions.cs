@@ -9,34 +9,34 @@ namespace LanguageExtended.Result;
 /// </summary>
 public static class ResultExtensions
 {
-    /// <summary>
-    /// Executes the provided action if the result is a failure, then returns the original result.
-    /// </summary>
+    /// <param name="result">The result to check.</param>
     /// <typeparam name="T">The success value type.</typeparam>
     /// <typeparam name="TError">The error value type.</typeparam>
-    /// <param name="result">The result to check.</param>
-    /// <param name="action">The action to execute with the error value if the result is a failure.</param>
-    /// <returns>The original result, allowing for method chaining.</returns>
-    public static Result<T, TError> IfFailure<T, TError>(this Result<T, TError> result, Action<TError> action)
+    extension<T, TError>(Result<T, TError> result)
     {
-        if (result.IsFailure)
-            action(result.Error);
-        return result;
-    }
+        /// <summary>
+        /// Executes the provided action if the result is a failure, then returns the original result.
+        /// </summary>
+        /// <param name="action">The action to execute with the error value if the result is a failure.</param>
+        /// <returns>The original result, allowing for method chaining.</returns>
+        public Result<T, TError> IfFailure(Action<TError> action)
+        {
+            if (result.IsFailure)
+                action(result.Error);
+            return result;
+        }
 
-    /// <summary>
-    /// Executes the provided action if the result is a success, then returns the original result.
-    /// </summary>
-    /// <typeparam name="T">The success value type.</typeparam>
-    /// <typeparam name="TError">The error value type.</typeparam>
-    /// <param name="result">The result to check.</param>
-    /// <param name="action">The action to execute with the success value if the result is a success.</param>
-    /// <returns>The original result, allowing for method chaining.</returns>
-    public static Result<T, TError> IfSuccess<T, TError>(this Result<T, TError> result, Action<T> action)
-    {
-        if (result.IsSuccess)
-            action(result.Value);
-        return result;
+        /// <summary>
+        /// Executes the provided action if the result is a success, then returns the original result.
+        /// </summary>
+        /// <param name="action">The action to execute with the success value if the result is a success.</param>
+        /// <returns>The original result, allowing for method chaining.</returns>
+        public Result<T, TError> IfSuccess(Action<T> action)
+        {
+            if (result.IsSuccess)
+                action(result.Value);
+            return result;
+        }
     }
 
     /// <summary>

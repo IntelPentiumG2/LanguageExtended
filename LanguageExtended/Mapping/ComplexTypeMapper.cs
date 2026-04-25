@@ -53,7 +53,7 @@ internal class ComplexTypeMapper
             Type targetType = MemberAccessor.GetMemberType(targetMember);
 
             // Check if we've already mapped this object to prevent circular reference issues
-            if (mappingContext.TryGetValue(value, out var existingTarget))
+            if (mappingContext.TryGetValue(value, out object? existingTarget))
                 return MemberAccessor.SetMemberValue(target, targetMember, existingTarget);
             
             try
@@ -112,20 +112,20 @@ internal class ComplexTypeMapper
             }
 
             // Strategy 2: Try to find a constructor and use default values for parameters
-            var constructors = type.GetConstructors(BindingFlags.Public | BindingFlags.Instance)
+            ConstructorInfo[] constructors = type.GetConstructors(BindingFlags.Public | BindingFlags.Instance)
                 .OrderBy(c => c.GetParameters().Length)
                 .ToArray();
 
-            foreach (var constructor in constructors)
+            foreach (ConstructorInfo constructor in constructors)
             {
                 try
                 {
-                    var parameters = constructor.GetParameters();
-                    var parameterValues = new object?[parameters.Length];
+                    ParameterInfo[] parameters = constructor.GetParameters();
+                    object?[] parameterValues = new object?[parameters.Length];
 
                     for (int i = 0; i < parameters.Length; i++)
                     {
-                        var param = parameters[i];
+                        ParameterInfo param = parameters[i];
                         
                         // Use default value if available
                         if (param.HasDefaultValue)
