@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Reflection;
 using LanguageExtended.Result;
 // ReSharper disable UnusedMember.Local
@@ -18,8 +18,8 @@ internal class CollectionMapper
     /// <summary>
     /// Initializes a new instance of the CollectionMapper class.
     /// </summary>
-    /// <param name="typeHelper">The Helper</param>
     /// <param name="mapper">The Mapper</param>
+    /// <param name="typeHelper">The Helper</param>
     /// <param name="typeConverter">The <see cref="TypeConverter"/> to use for conversions</param>
     internal CollectionMapper(Mapper mapper, TypeHelper typeHelper, TypeConverter typeConverter)
     {
@@ -72,7 +72,7 @@ internal class CollectionMapper
                 }
                 else
                 {
-                    Result<object, MappingError> conversionResult = _typeConverter.TryConvertValue(item, elementType);
+                    Result<object?, MappingError> conversionResult = _typeConverter.TryConvertValue(item, elementType);
                     if (conversionResult.IsSuccess)
                     {
                         mappedItems.Add(conversionResult.Value);
@@ -146,13 +146,12 @@ internal class CollectionMapper
             IDictionary targetDictionary = dictionaryResult.Value;
             foreach (DictionaryEntry entry in sourceDictionary)
             {
-                Result<object, MappingError> keyConversionResult = _typeConverter.TryConvertValue(entry.Key, keyType);
-                Result<object, MappingError> valueConversionResult = _typeConverter.TryConvertValue(entry.Value, valueType);
+                Result<object?, MappingError> keyConversionResult = _typeConverter.TryConvertValue(entry.Key, keyType);
+                Result<object?, MappingError> valueConversionResult = _typeConverter.TryConvertValue(entry.Value, valueType);
 
+                // Converting a non-null key never yields null.
                 if (keyConversionResult.IsSuccess && valueConversionResult.IsSuccess)
-                {
-                    targetDictionary.Add(keyConversionResult.Value, valueConversionResult.Value);
-                }
+                    targetDictionary.Add(keyConversionResult.Value!, valueConversionResult.Value);
             }
 
             return MemberAccessor.SetMemberValue(target, targetMember, targetDictionary);

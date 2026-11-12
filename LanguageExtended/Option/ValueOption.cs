@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System.Text.Json.Serialization;
 
 namespace LanguageExtended.Option;
 
@@ -7,7 +8,8 @@ namespace LanguageExtended.Option;
 /// This class works with value types (structs).
 /// </summary>
 /// <typeparam name="T">The type of the value of the ValueOption</typeparam>
-public readonly struct ValueOption<T> : IEquatable<ValueOption<T>>, IEnumerable<T> where T : struct
+[JsonConverter(typeof(OptionJsonConverterFactory))]
+public readonly partial struct ValueOption<T> : IEquatable<ValueOption<T>>, IEnumerable<T> where T : struct
 {
     private readonly T _value;
     private readonly bool _hasValue;

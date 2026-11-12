@@ -131,7 +131,7 @@ internal class MemberAccessor
     /// <param name="target">The target object to set the value on.</param>
     /// <param name="member">The member to set the value to.</param>
     /// <param name="value">The value to set.</param>
-    internal static Result<bool, MappingError> SetMemberValue(object target, MemberInfo member, object value)
+    internal static Result<bool, MappingError> SetMemberValue(object target, MemberInfo member, object? value)
     {
         try
         {

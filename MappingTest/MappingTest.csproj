@@ -4,7 +4,9 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <IsPackable>false</IsPackable>
-        <TargetFramework>net9.0</TargetFramework>
+        <!-- Fixture DTOs are created via new() and filled by the mapper. -->
+        <NoWarn>$(NoWarn);CS8618</NoWarn>
+        <TargetFrameworks>net10.0;net11.0</TargetFrameworks>
     </PropertyGroup>
 
     <ItemGroup>

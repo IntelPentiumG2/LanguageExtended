@@ -1,6 +1,8 @@
 ﻿// ReSharper disable UnusedType.Global
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 // ReSharper disable UnusedMember.Global
+using System.Text.Json.Serialization;
+
 namespace LanguageExtended.Mapping;
     
     /// <summary>
@@ -20,7 +22,9 @@ namespace LanguageExtended.Mapping;
     
         /// <summary>
         /// Gets the exception that caused the error, if any.
+        /// Not serialized to JSON, so stack traces and internals don't leak to clients.
         /// </summary>
+        [JsonIgnore]
         public Exception? Exception { get; }
         
         /// <summary>

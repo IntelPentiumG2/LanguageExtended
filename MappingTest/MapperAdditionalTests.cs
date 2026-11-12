@@ -193,7 +193,7 @@ namespace MappingTest
             // Arrange
             var source = new SimpleSource
             {
-                Name = null,  // Name is required in the target
+                Name = null!,  // Name is required in the target
                 Age = -5      // Age must be positive in the target
             };
             

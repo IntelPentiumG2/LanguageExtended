@@ -210,12 +210,35 @@ public  class Mapper
     /// <param name="mappingContext">Dictionary to track already mapped objects for circular reference handling.</param>
     private Result<bool, MappingError> SetMappedValue(object target, MemberInfo targetMember, object? source, Dictionary<object, object> mappingContext)
     {
-        // Handle null source values
-        if (source is null && !_options.CreateEmptyObjectsInsteadOfNull)
-            return MemberAccessor.SetMemberValue(target, targetMember, null);
-        
         Type targetMemberType = MemberAccessor.GetMemberType(targetMember);
+#if NET11_0_OR_GREATER
+        // Unwrap Option/Result/any C# 15 union to its case value, unless the target takes it as-is or as a collection.
+        if (source is System.Runtime.CompilerServices.IUnion union
+            && !targetMemberType.IsInstanceOfType(source)
+            && !(TypeHelper.IsCollection(targetMemberType) && TypeHelper.IsCollection(source.GetType())))
+        {
+            // A failed Result holds an error, not data.
+            if (source is IResult { IsFailure: true })
+                return _options.LenientMappingErrors
+                    ? Result<bool, MappingError>.Success(true)
+                    : Result<bool, MappingError>.Failure(new MappingError(
+                        $"Source for '{targetMember.Name}' is a failed Result",
+                        MappingErrorType.ConversionError,
+                        targetMember.Name));
+            source = union.Value;
+        }
+#endif
+
+        if (source is null)
+            return _options.CreateEmptyObjectsInsteadOfNull && TypeHelper.IsComplexType(targetMemberType)
+                ? ComplexTypeMapper.CreateAndSetComplexType(target, targetMember)
+                : MemberAccessor.SetMemberValue(target, targetMember, null);
+
         Type valueType = source.GetType();
+
+        // Structs the target takes as-is (e.g. Option/ValueOption, which are also IEnumerable) are copied directly.
+        if (valueType.IsValueType && targetMemberType.IsInstanceOfType(source))
+            return MemberAccessor.SetMemberValue(target, targetMember, source);
 
         // Handle complex types
         if (TypeHelper.IsComplexType(targetMemberType) && TypeHelper.IsComplexType(valueType))
@@ -226,7 +249,7 @@ public  class Mapper
             return _collectionMapper.HandleCollection(target, targetMember, source, mappingContext);
 
         // Handle primitive type conversion
-        Result<object, MappingError> conversionResult = _typeConverter.TryConvertValue(source, targetMemberType);
+        Result<object?, MappingError> conversionResult = _typeConverter.TryConvertValue(source, targetMemberType);
 
         if (conversionResult.IsSuccess) 
             return MemberAccessor.SetMemberValue(target, targetMember, conversionResult.Value);

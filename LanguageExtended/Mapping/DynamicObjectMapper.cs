@@ -1,4 +1,4 @@
-﻿using System.Dynamic;
+using System.Dynamic;
 using System.Reflection;
 using LanguageExtended.Result;
 
@@ -38,7 +38,7 @@ internal class DynamicObjectMapper
                     else
                     {
                         Type targetType = MemberAccessor.GetMemberType(targetMember);
-                        Result<object, MappingError> conversionResult = _typeConverter.TryConvertValue(value, targetType);
+                        Result<object?, MappingError> conversionResult = _typeConverter.TryConvertValue(value, targetType);
                         if (conversionResult.IsSuccess)
                         {
                             Result<bool, MappingError> setResult = MemberAccessor.SetMemberValue(target, targetMember, conversionResult.Value);
@@ -73,11 +73,9 @@ internal class DynamicObjectMapper
 
     private static IDictionary<string, object?> GetDynamicProperties(object source)
     {
-        if (source is IDictionary<string, object> dict)
+        // Nullability is not part of the runtime type, so this also matches IDictionary<string, object> (e.g. ExpandoObject).
+        if (source is IDictionary<string, object?> dict)
             return dict;
-
-        if (source is IDictionary<string, object?> dictNullable)
-            return dictNullable;
 
         Dictionary<string, object?> result = new Dictionary<string, object?>();
         if (source is IDynamicMetaObjectProvider)

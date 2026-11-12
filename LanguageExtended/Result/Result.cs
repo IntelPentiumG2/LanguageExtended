@@ -6,7 +6,7 @@ namespace LanguageExtended.Result;
 /// </summary>
 /// <typeparam name="T">The type of the value in case of success.</typeparam>
 /// <typeparam name="TError">The type of the error in case of failure.</typeparam>
-public readonly struct Result<T, TError> : IEquatable<Result<T, TError>>
+public readonly partial struct Result<T, TError> : IEquatable<Result<T, TError>>
 {
     private readonly T? _value;
     private readonly TError? _error;

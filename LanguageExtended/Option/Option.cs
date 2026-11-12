@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json.Serialization;
 using LanguageExtended.Result;
 
 namespace LanguageExtended.Option;
@@ -8,7 +9,8 @@ namespace LanguageExtended.Option;
 /// Represents an optional value that may or may not have a value.
 /// </summary>
 /// <typeparam name="T"> The type of the value of the Option </typeparam>
-public readonly struct Option<T> : IEquatable<Option<T>>, IEnumerable<T> where T : class
+[JsonConverter(typeof(OptionJsonConverterFactory))]
+public readonly partial struct Option<T> : IEquatable<Option<T>>, IEnumerable<T> where T : class
 {
     private readonly T? _value;
 

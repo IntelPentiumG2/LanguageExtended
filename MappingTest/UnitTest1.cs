@@ -24,7 +24,7 @@ public class MapperTests
     {
         var mapper = Mapper.Default;
 
-        var result = mapper.Map<Destination>(null);
+        var result = mapper.Map<Destination>(null!);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(MappingErrorType.NullReference, result.Error.ErrorType);

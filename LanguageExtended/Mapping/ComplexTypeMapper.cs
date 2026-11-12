@@ -6,12 +6,6 @@ using LanguageExtended.Result;
 
 namespace LanguageExtended.Mapping;
 
-internal class ReferenceEqualityComparer : IEqualityComparer<object>
-{
-    public new bool Equals(object? x, object? y) => ReferenceEquals(x, y);
-    public int GetHashCode(object obj) => RuntimeHelpers.GetHashCode(obj);
-}
-
 /// <summary>
 /// Provides methods for mapping complex types.
 /// </summary>
@@ -35,7 +29,7 @@ internal class ComplexTypeMapper
     /// <returns>A new dictionary for tracking mapped objects.</returns>
     internal static Dictionary<object, object> CreateMappingContext()
     {
-        return new Dictionary<object, object>(new ReferenceEqualityComparer());
+        return new Dictionary<object, object>(ReferenceEqualityComparer.Instance);
     }
     
     /// <summary>
