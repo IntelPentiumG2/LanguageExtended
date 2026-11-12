@@ -1,0 +1,67 @@
+# On every push to master: if the <Version> in LanguageExtended.csproj has no GitHub Release yet,
+# build, test and pack the NuGet package, then create release v<Version> with the package attached
+# and RELEASE_NOTES.md as its message. Bump <Version> to publish a new release.
+
+name: Release
+
+on:
+  push:
+    branches: [ "master" ]
+    paths-ignore: [ ".github/**" ]   # CI-only changes don't produce a release
+
+permissions:
+  contents: write   # needed to create the GitHub Release
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      exists: ${{ steps.version.outputs.exists }}
+    steps:
+    - uses: actions/checkout@v4
+    - name: Read version and check for an existing release
+      id: version
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        version=$(sed -n 's|.*<Version>\(.*\)</Version>.*|\1|p' LanguageExtended/LanguageExtended.csproj)
+        if [ -z "$version" ]; then echo "No <Version> in LanguageExtended.csproj" >&2; exit 1; fi
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+        if gh release view "v$version" > /dev/null 2>&1; then exists=true; else exists=false; fi
+        echo "exists=$exists" >> "$GITHUB_OUTPUT"
+        echo "Version $version, release exists: $exists"
+
+  release:
+    needs: check
+    if: needs.check.outputs.exists == 'false'
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.check.outputs.version }}
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: |
+          10.0.x
+          11.0.x
+    - name: Restore dependencies
+      run: dotnet restore
+    - name: Build
+      run: dotnet build -c Release --no-restore
+    - name: Test
+      run: dotnet test -c Release --no-build --verbosity normal
+    # --no-build: GeneratePackageOnBuild already packs during build; rebuilding here races with it (NU5026).
+    - name: Pack
+      run: dotnet pack LanguageExtended/LanguageExtended.csproj -c Release --no-build -o artifacts
+    - name: Upload package
+      uses: actions/upload-artifact@v4
+      with:
+        name: nuget-package
+        path: artifacts/*.nupkg
+    - name: Create GitHub Release
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: gh release create "v$VERSION" artifacts/*.nupkg --target "$GITHUB_SHA" --title "LanguageExtended $VERSION" --notes-file RELEASE_NOTES.md
