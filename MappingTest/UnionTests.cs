@@ -100,8 +100,6 @@ public class UnionTests
 
     private class FailedSource { public Result<string, string> Name { get; set; } }
     private class NameTarget { public string? Name { get; set; } }
-    private class ItemsSource { public ValueOption<int> Items { get; set; } }
-    private class ItemsTarget { public List<int>? Items { get; set; } }
 
     [Fact]
     public void Mapper_FailedResultSource_IsMappingError()
@@ -122,15 +120,6 @@ public class UnionTests
 
         Assert.True(result.IsSuccess, result.IsFailure ? result.Error.Message : "");
         Assert.Null(result.Value.Name);
-    }
-
-    [Fact]
-    public void Mapper_EnumerableUnionIntoCollection_UsesCollectionPath()
-    {
-        var result = Mapper.Default.Map<ItemsTarget>(new ItemsSource { Items = ValueOption<int>.Some(3) });
-
-        Assert.True(result.IsSuccess, result.IsFailure ? result.Error.Message : "");
-        Assert.Equal([3], result.Value.Items);
     }
 
     [Fact]

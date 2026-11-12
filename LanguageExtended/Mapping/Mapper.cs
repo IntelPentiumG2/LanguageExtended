@@ -212,10 +212,8 @@ public  class Mapper
     {
         Type targetMemberType = MemberAccessor.GetMemberType(targetMember);
 #if NET11_0_OR_GREATER
-        // Unwrap Option/Result/any C# 15 union to its case value, unless the target takes it as-is or as a collection.
-        if (source is System.Runtime.CompilerServices.IUnion union
-            && !targetMemberType.IsInstanceOfType(source)
-            && !(TypeHelper.IsCollection(targetMemberType) && TypeHelper.IsCollection(source.GetType())))
+        // Unwrap Option/Result/any C# 15 union to its case value, unless the target member takes the union itself.
+        if (source is System.Runtime.CompilerServices.IUnion union && !targetMemberType.IsInstanceOfType(source))
         {
             // A failed Result holds an error, not data.
             if (source is IResult { IsFailure: true })
@@ -236,7 +234,7 @@ public  class Mapper
 
         Type valueType = source.GetType();
 
-        // Structs the target takes as-is (e.g. Option/ValueOption, which are also IEnumerable) are copied directly.
+        // Structs the target takes as-is (e.g. Option/ValueOption) are copied directly.
         if (valueType.IsValueType && targetMemberType.IsInstanceOfType(source))
             return MemberAccessor.SetMemberValue(target, targetMember, source);
 

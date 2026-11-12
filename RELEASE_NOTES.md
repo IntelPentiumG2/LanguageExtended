@@ -11,6 +11,7 @@
 5. **Mapper: union-typed source members are unwrapped (net11 only).** `Option<string>` maps to a `string` target and `ValueOption<int>` to `int`. A **failed** `Result` source is now a `ConversionError` mapping error, or is skipped when `LenientMappingErrors` is on. On net10 such members still go through normal conversion, which fails.
 6. **Mapper: `CreateEmptyObjectsInsteadOfNull` now works.** A null source value for a complex member creates an empty instance. Before, the mapping failed with a `NullReferenceException` wrapped in a `GeneralMappingError`.
 7. **`Mapper()` parameterless constructor removed.** Use `Mapper.Default` or `new Mapper(new MappingOptions())`.
+8. **`ValueOption<T>` no longer implements `IEnumerable<T>`.** Serializers, mappers and test frameworks treated it as a collection. Use the new `AsEnumerable()` for LINQ or `foreach`.
 
 ## New
 
@@ -28,12 +29,12 @@
   var options = new JsonSerializerOptions { Converters = { new ResultJsonConverterFactory() } };
   ```
   Without it, serializing a `Result` still throws, as before.
-- **More `Option<T>` members:** `Match<TResult>`, `OrElse`, `ToResult`, `ToNullable`. `Option<T>` is now `IEnumerable<T>` (one item when Some).
+- **More `Option<T>` members:** `Match<TResult>`, `OrElse`, `ToResult`, `ToNullable`, and `AsEnumerable()` (zero or one item) on both `Option<T>` and `ValueOption<T>`.
 - **More `Result<T, TError>` members:** `Bind`, `Reduce`, `Ensure`, plus a `ToOption()` extension.
 - **Sequence helpers:** `FirstOrNone`, `LastOrNone`, `SingleOrNone` (each with an optional predicate) and `Values()` for `IEnumerable<Option<T>>`.
 - **Async extensions for `Task<Option<T>>` and `Task<Result<T, TError>>`:** `MapAsync`, `BindAsync`, `MatchAsync`, `ReduceAsync`, `WhereAsync` / `EnsureAsync`, `IfSomeAsync` / `IfNoneAsync`, `IfSuccessAsync` / `IfFailureAsync`, `MapErrorAsync`.
 - **Mapper:** null values in dictionaries are now kept instead of being dropped silently.
-- **Mapper:** `Option<T>` / `ValueOption<T>` members are copied when source and target have the same type. Before, they went down the collection path and failed.
+- **Mapper:** `ValueOption<T>` members are copied when source and target have the same type. Before, they went down the collection path and failed.
 
 ## Other changes
 

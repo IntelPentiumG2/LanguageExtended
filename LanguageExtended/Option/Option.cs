@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 using LanguageExtended.Result;
@@ -10,7 +9,7 @@ namespace LanguageExtended.Option;
 /// </summary>
 /// <typeparam name="T"> The type of the value of the Option </typeparam>
 [JsonConverter(typeof(OptionJsonConverterFactory))]
-public readonly partial struct Option<T> : IEquatable<Option<T>>, IEnumerable<T> where T : class
+public readonly partial struct Option<T> : IEquatable<Option<T>> where T : class
 {
     private readonly T? _value;
 
@@ -205,14 +204,11 @@ public readonly partial struct Option<T> : IEquatable<Option<T>>, IEnumerable<T>
     /// <returns>The value if present; otherwise null.</returns>
     public T? ToNullable() => _value;
 
-    /// <inheritdoc />
-    public IEnumerator<T> GetEnumerator()
-    {
-        if (_value is not null)
-            yield return _value;
-    }
-
-    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+    /// <summary>
+    /// Returns the value as a sequence of zero or one item, for use with LINQ or <c>foreach</c>.
+    /// </summary>
+    /// <returns>A sequence with the value if present; otherwise an empty sequence.</returns>
+    public IEnumerable<T> AsEnumerable() => _value is null ? [] : [_value];
 
     /// <summary>
     /// Explicitly converts a nullable value of type T to an Option&lt;T&gt;.

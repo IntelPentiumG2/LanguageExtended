@@ -1,4 +1,3 @@
-﻿using System.Collections;
 using System.Text.Json.Serialization;
 
 namespace LanguageExtended.Option;
@@ -9,7 +8,7 @@ namespace LanguageExtended.Option;
 /// </summary>
 /// <typeparam name="T">The type of the value of the ValueOption</typeparam>
 [JsonConverter(typeof(OptionJsonConverterFactory))]
-public readonly partial struct ValueOption<T> : IEquatable<ValueOption<T>>, IEnumerable<T> where T : struct
+public readonly partial struct ValueOption<T> : IEquatable<ValueOption<T>> where T : struct
 {
     private readonly T _value;
     private readonly bool _hasValue;
@@ -201,12 +200,9 @@ public readonly partial struct ValueOption<T> : IEquatable<ValueOption<T>>, IEnu
     /// <returns>true if the value of left is not the same as the value of right; otherwise, false.</returns>
     public static bool operator !=(ValueOption<T> left, ValueOption<T> right) => !left.Equals(right);
 
-    /// <inheritdoc />
-    public IEnumerator<T> GetEnumerator()
-    {
-        if (_hasValue)
-            yield return _value;
-    }
-
-    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+    /// <summary>
+    /// Returns the value as a sequence of zero or one item, for use with LINQ or <c>foreach</c>.
+    /// </summary>
+    /// <returns>A sequence with the value if present; otherwise an empty sequence.</returns>
+    public IEnumerable<T> AsEnumerable() => _hasValue ? [_value] : [];
 }
