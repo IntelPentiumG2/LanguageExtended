@@ -1,3 +1,4 @@
+using LanguageExtended;
 using LanguageExtended.Mapping;
 using LanguageExtended.Result;
 
@@ -53,6 +54,13 @@ public class ResultTests
         Assert.Equal("ok 5", hit);
         Fail.Match(x => hit = $"ok {x}", e => hit = e);
         Assert.Equal("bad", hit);
+
+        // Generic overload: result type differs from T; the calls above must still compile without ambiguity.
+        Assert.Equal("5", Ok.Match(x => x.ToString(), e => e));
+        Assert.Equal("bad", Fail.Match(x => x.ToString(), e => e));
+        Assert.Equal(204, Result<Unit, string>.Success(Unit.Value).Match(_ => 204, _ => 400));
+        Ok.Match(x => { hit = "block"; }, e => { hit = e; });
+        Assert.Equal("block", hit);
 
         Assert.Equal(5, Ok.Reduce(0));
         Assert.Equal(0, Fail.Reduce(0));
@@ -144,5 +152,16 @@ public class ResultTests
     {
         MappingError error = new("boom", MappingErrorType.ConversionError, "A.B");
         Assert.Same(error, new MappingException(error).MappingError);
+    }
+
+    [Fact]
+    public void Unit_ResultWithoutValue()
+    {
+        static Result<Unit, string> Save(bool ok) => ok ? Unit.Value : "failed";
+
+        Assert.True(Save(true).IsSuccess);
+        Assert.Equal("failed", Save(false).Error);
+        Assert.Equal(Unit.Value, default(Unit));
+        Assert.Equal("()", Unit.Value.ToString());
     }
 }

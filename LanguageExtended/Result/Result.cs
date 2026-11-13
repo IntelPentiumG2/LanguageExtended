@@ -98,6 +98,17 @@ public readonly partial struct Result<T, TError> : IEquatable<Result<T, TError>>
         IsSuccess ? onSuccess(_value!) : onFailure(_error!);
 
     /// <summary>
+    /// Maps the result to a value of a different type using the provided functions.
+    /// Unlike <see cref="Match(Func{T,T},Func{TError,T})"/>, this overload allows the result to differ from <typeparamref name="T"/>.
+    /// </summary>
+    /// <typeparam name="TResult">The type of the returned value.</typeparam>
+    /// <param name="onSuccess">A function to call with the value if the result is a success.</param>
+    /// <param name="onFailure">A function to call with the error if the result is a failure.</param>
+    /// <returns>The result of <paramref name="onSuccess"/> or <paramref name="onFailure"/>.</returns>
+    public TResult Match<TResult>(Func<T, TResult> onSuccess, Func<TError, TResult> onFailure) =>
+        IsSuccess ? onSuccess(_value!) : onFailure(_error!);
+
+    /// <summary>
     /// Executes one of the provided actions based on whether the result is a success or failure.
     /// </summary>
     /// <param name="onSuccess">The action to execute if the result is a success.</param>

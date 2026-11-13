@@ -1,4 +1,5 @@
 using System.Text.Json;
+using LanguageExtended;
 using LanguageExtended.Mapping;
 using LanguageExtended.Result;
 
@@ -82,5 +83,12 @@ public class ResultJsonTests
     public void MalformedInput_Throws(string json)
     {
         Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Result<int, string>>(json, Options));
+    }
+
+    [Fact]
+    public void Unit_RoundTrips()
+    {
+        Assert.True(RoundTrip(Result<Unit, string>.Success(Unit.Value), """{"value":{}}""").IsSuccess);
+        Assert.Equal("e", RoundTrip(Result<Unit, string>.Failure("e"), """{"error":"e"}""").Error);
     }
 }

@@ -7,6 +7,7 @@ namespace LanguageExtended.Result;
 /// <summary>
 /// Opt-in System.Text.Json support for <see cref="Result{T, TError}"/>.
 /// Writes <c>{"value": ...}</c> on success and <c>{"error": ...}</c> on failure.
+/// A <see cref="Unit"/> success is written as <c>{"value":{}}</c>.
 /// </summary>
 /// <example><c>options.Converters.Add(new ResultJsonConverterFactory());</c></example>
 /// <remarks>
