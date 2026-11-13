@@ -122,7 +122,7 @@ internal class CollectionMapper
             return Result<object?, MappingError>.Success(item);
 
         Type itemType = item.GetType();
-        if (TypeHelper.IsComplexType(targetType) && TypeHelper.IsComplexType(itemType))
+        if (TypeHelper.IsComplexType(targetType) && TypeHelper.IsComplexSource(itemType))
             return _complexTypeMapper.MapNested(item, targetType, mappingContext).Map<object?>(nested => nested);
 
         if (TypeHelper.IsCollection(targetType) && TypeHelper.IsCollection(itemType))

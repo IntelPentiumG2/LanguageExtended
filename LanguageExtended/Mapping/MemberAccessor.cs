@@ -35,10 +35,10 @@ internal class MemberAccessor
     /// <returns>An IEnumerable of MemberInfo representing the writable properties and fields.</returns>
     internal IEnumerable<MemberInfo> GetTargetMembers(Type targetType)
     {
-        // Get writable properties
+        // Get writable properties; indexers need arguments, so they are not mappable members
         foreach (PropertyInfo prop in _properties.GetOrAdd(targetType, targetType.GetProperties(BindingFlags.Public | BindingFlags.Instance)))
         {
-            if (prop.CanWrite)
+            if (prop.CanWrite && prop.GetIndexParameters().Length == 0)
                 yield return prop;
         }
 
@@ -63,7 +63,7 @@ internal class MemberAccessor
             PropertyInfo[] props = _properties.GetOrAdd(sourceType, t => 
                 t.GetProperties(BindingFlags.Public | BindingFlags.Instance));
         
-            PropertyInfo? prop = props.FirstOrDefault(p => p.Name.Equals(memberName, _stringComparison));
+            PropertyInfo? prop = props.FirstOrDefault(p => p.Name.Equals(memberName, _stringComparison) && p.GetIndexParameters().Length == 0);
         
             if (prop != null && prop.CanRead) 
                 return Option<MemberInfo>.Some(prop);

@@ -1,9 +1,9 @@
 ﻿namespace LanguageExtended.Mapping;
 /// <summary>
-/// A Exception for Mapping errors
+/// Thrown by <see cref="Mapper"/> when a mapping fails and <see cref="MappingOptions.ThrowOnMappingFailure"/> is set.
 /// </summary>
 /// <param name="error">The MappingError that occured</param>
-public class MappingException(MappingError error) : Exception
+public class MappingException(MappingError error) : Exception(error.Message, error.Exception)
 {
     /// <summary>
     /// The MappingError that occured 

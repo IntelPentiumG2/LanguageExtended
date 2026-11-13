@@ -13,8 +13,9 @@ public record MappingOptions
     public bool IgnoreCase { get; set; } = false;
 
     /// <summary>
-    /// Gets or sets a value indicating whether to ignore missing members in the target type.
+    /// Has no effect: source members without a matching target member are always ignored.
     /// </summary>
+    [Obsolete("Has no effect: source members without a matching target member are always ignored. Will be removed in the next major version.")]
     public bool IgnoreMissingSourceMembers { get; set; } = true;
     
     /// <summary>
@@ -28,7 +29,9 @@ public record MappingOptions
     public bool LenientMappingErrors { get; set; } = false;
 
     /// <summary>
-    /// Gets or sets a value indicating whether to throw an exception on mapping failure.
+    /// Gets or sets a value indicating whether <see cref="Mapper.Map{TTarget}"/> and
+    /// <see cref="Mapper.MapWithoutDefaultConstructor{TTarget}"/> throw a <see cref="MappingException"/>
+    /// instead of returning a failed result.
     /// </summary>
     public bool ThrowOnMappingFailure { get; set; } = false;
     

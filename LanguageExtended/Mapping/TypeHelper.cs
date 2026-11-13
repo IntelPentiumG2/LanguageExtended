@@ -24,6 +24,15 @@ internal class TypeHelper
                && !IsCollection(type) 
                && type.IsClass;
     }
+
+    /// <summary>
+    /// Determines if a source value of this type is mapped member by member: a complex type,
+    /// or a dynamic object such as ExpandoObject, which is also enumerable.
+    /// </summary>
+    /// <param name="type">The type of the source value.</param>
+    /// <returns>True if the value is mapped member by member, otherwise false.</returns>
+    internal static bool IsComplexSource(Type type) =>
+        IsComplexType(type) || typeof(System.Dynamic.IDynamicMetaObjectProvider).IsAssignableFrom(type);
     
     /// <summary>
     /// Determines if the type is a collection.

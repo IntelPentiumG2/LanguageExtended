@@ -169,10 +169,10 @@ public class MapperTests
         var source = new { Status = "Invalid" };
         var mapper = new Mapper(new MappingOptions { ThrowOnMappingFailure = true });
 
-        var result = mapper.Map<EnumDestination>(source);
+        MappingException ex = Assert.Throws<MappingException>(() => mapper.Map<EnumDestination>(source));
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(MappingErrorType.EnumConversionError, result.Error.ErrorType);
+        Assert.Equal(MappingErrorType.EnumConversionError, ex.MappingError.ErrorType);
+        Assert.Equal(ex.MappingError.Message, ex.Message);
     }
 
     [Fact]
@@ -303,9 +303,7 @@ public class MapperTests
     public void Map_IgnoreMissingMembers_Success()
     {
         var source = new { Id = 1, Name = "Test" };
-        var mapper = new Mapper(new MappingOptions { IgnoreMissingSourceMembers = true });
-
-        var result = mapper.Map<Destination>(source);
+        var result = Mapper.Default.Map<Destination>(source);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(1, result.Value.Id);

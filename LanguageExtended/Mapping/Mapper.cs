@@ -27,7 +27,6 @@ public  class Mapper
     private readonly MemberAccessor _memberAccessor;
     private readonly ComplexTypeMapper _complexTypeMapper;
     private readonly CollectionMapper _collectionMapper;
-    private readonly DynamicObjectMapper _dynamicObjectMapper;
     private readonly TypeConverter _typeConverter;
 
     /// <summary>
@@ -46,7 +45,6 @@ public  class Mapper
         _complexTypeMapper = new ComplexTypeMapper(this);
         _typeConverter = new TypeConverter(_options.IgnoreCase, _options.Culture);
         _collectionMapper = new CollectionMapper(_options, _complexTypeMapper, new TypeHelper(), _typeConverter);
-        _dynamicObjectMapper = new DynamicObjectMapper(_options, _typeConverter, _memberAccessor);
     }
     
     /// <summary>
@@ -81,7 +79,17 @@ public  class Mapper
     /// <summary>
     /// Internal method that handles the common mapping logic for both Map methods.
     /// </summary>
+    /// <exception cref="MappingException">The mapping failed and <see cref="MappingOptions.ThrowOnMappingFailure"/> is set.</exception>
     private Result<TTarget, MappingError> MapInternal<TTarget>(object source, Func<TTarget> targetFactory)
+    {
+        // Thrown here, outside TryMap's catch, so the exception is not turned back into a Result.
+        Result<TTarget, MappingError> result = TryMap(source, targetFactory);
+        if (result.IsFailure && _options.ThrowOnMappingFailure)
+            throw new MappingException(result.Error);
+        return result;
+    }
+
+    private Result<TTarget, MappingError> TryMap<TTarget>(object source, Func<TTarget> targetFactory)
     {
         if (source == null)
             return Result<TTarget, MappingError>.Failure(new MappingError(
@@ -128,12 +136,16 @@ public  class Mapper
     {
         try
         {
-            if (source is IDynamicMetaObjectProvider)
-                return _dynamicObjectMapper.MapDynamicObject(source, target);
+            // ExpandoObject-style sources hold their members in a dictionary; other dynamic objects
+            // (e.g. DynamicObject subclasses) expose public properties and use the regular member lookup.
+            // A case-insensitive copy throws on keys differing only in case, failing the mapping instead of picking one.
+            IDictionary<string, object?>? dynamicValues = source is IDynamicMetaObjectProvider and IDictionary<string, object?> values
+                ? _options.IgnoreCase ? new Dictionary<string, object?>(values, StringComparer.OrdinalIgnoreCase) : values
+                : null;
 
             foreach (MemberInfo targetMember in _memberAccessor.GetTargetMembers(target.GetType()))
             {
-                Result<bool, MappingError> memberResult = MapSingleMember(source, target, targetMember, mappingContext);
+                Result<bool, MappingError> memberResult = MapSingleMember(source, dynamicValues, target, targetMember, mappingContext);
                 if (memberResult.IsFailure)
                     return memberResult;
             }
@@ -153,11 +165,9 @@ public  class Mapper
     /// <summary>
     /// Maps a single member from source to target.
     /// </summary>
-    private Result<bool, MappingError> MapSingleMember(object source, object target, MemberInfo targetMember, MappingContext mappingContext)
+    private Result<bool, MappingError> MapSingleMember(object source, IDictionary<string, object?>? dynamicValues, object target, MemberInfo targetMember, MappingContext mappingContext)
     {
-        Option<MemberInfo> sourceMemberOption = _memberAccessor.FindSourceMember(source.GetType(), targetMember.Name);
-
-        if (sourceMemberOption.IsNone)
+        if (!TryGetSourceValue(source, dynamicValues, targetMember.Name, out Result<object?, MappingError> sourceValueResult))
         {
             if (!_options.IgnoreUnmappedTargetMembers)
                 return Result<bool, MappingError>.Failure(new MappingError(
@@ -167,9 +177,6 @@ public  class Mapper
             
             return Result<bool, MappingError>.Success(true);
         }
-
-        MemberInfo sourceMember = sourceMemberOption.Value;
-        Result<object?, MappingError> sourceValueResult = MemberAccessor.GetMemberValue(source, sourceMember);
 
         if (!sourceValueResult.IsFailure)
             return SetMappedValue(target, targetMember, sourceValueResult.Value, mappingContext);
@@ -188,8 +195,26 @@ public  class Mapper
 
         return Result<bool, MappingError>.Success(true);
     }
-    
 
+    /// <summary>
+    /// Looks up the source value for a target member, by key for dictionary-backed dynamic sources and by member otherwise.
+    /// </summary>
+    /// <returns>false if the source has no such member; otherwise true, with the value or the error reading it.</returns>
+    private bool TryGetSourceValue(object source, IDictionary<string, object?>? dynamicValues, string name, out Result<object?, MappingError> value)
+    {
+        if (dynamicValues != null)
+        {
+            bool found = dynamicValues.TryGetValue(name, out object? dynamicValue);
+            value = Result<object?, MappingError>.Success(dynamicValue);
+            return found;
+        }
+
+        Option<MemberInfo> member = _memberAccessor.FindSourceMember(source.GetType(), name);
+        value = member.TryGetValue(out MemberInfo? sourceMember)
+            ? MemberAccessor.GetMemberValue(source, sourceMember)
+            : default;
+        return member.IsSome;
+    }
 
     /// <summary>
     /// Sets the mapped source value to the target member.
@@ -229,7 +254,7 @@ public  class Mapper
             return MemberAccessor.SetMemberValue(target, targetMember, source);
 
         // Handle complex types
-        if (TypeHelper.IsComplexType(targetMemberType) && TypeHelper.IsComplexType(valueType))
+        if (TypeHelper.IsComplexType(targetMemberType) && TypeHelper.IsComplexSource(valueType))
             return _complexTypeMapper.HandleComplexType(target, targetMember, source, mappingContext);
 
         // Handle collections

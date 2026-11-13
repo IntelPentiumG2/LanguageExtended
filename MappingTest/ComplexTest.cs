@@ -12,8 +12,7 @@ public class ComplexMapperTests
         var strictMapper = new Mapper(new MappingOptions 
         { 
             IgnoreCase = false, 
-            LenientMappingErrors = false,
-            ThrowOnMappingFailure = true
+            LenientMappingErrors = false
         });
         
         var lenientMapper = new Mapper(new MappingOptions 
@@ -21,7 +20,6 @@ public class ComplexMapperTests
             IgnoreCase = true, 
             LenientMappingErrors = true,
             ThrowOnMappingFailure = false,
-            IgnoreMissingSourceMembers = true,
             IgnoreUnmappedTargetMembers = true
         });
 
