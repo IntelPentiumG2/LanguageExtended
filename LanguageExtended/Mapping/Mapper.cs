@@ -1,6 +1,7 @@
 // ReSharper disable UnusedMember.Global
 // ReSharper disable UnusedType.Global
 
+using System.Diagnostics.CodeAnalysis;
 using System.Dynamic;
 using System.Reflection;
 using LanguageExtended.Result;
@@ -19,8 +20,16 @@ namespace LanguageExtended.Mapping;
 /// - Complex type mappings
 /// - Collection mappings
 /// </remarks>
-public  class Mapper
+[RequiresUnreferencedCode(Mapper.RequiresUnreferencedCodeMessage)]
+[RequiresDynamicCode(Mapper.RequiresDynamicCodeMessage)]
+public class Mapper
 {
+    internal const string RequiresUnreferencedCodeMessage =
+        "The mapper reads and writes members of types it discovers at runtime, which trimming may remove. "
+        + "See https://github.com/IntelPentiumG2/LanguageExtended/issues/1 for the planned source-generated mapper.";
+    internal const string RequiresDynamicCodeMessage =
+        "The mapper creates generic collection types at runtime; with value-type elements they may be missing under Native AOT.";
+
     private readonly MappingOptions _options;
     private static readonly Lazy<Mapper> DefaultInstance = new (() => new Mapper(new MappingOptions()), LazyThreadSafetyMode.ExecutionAndPublication);
     

@@ -1,5 +1,6 @@
 ﻿// ReSharper disable UnusedMember.Local
 // ReSharper disable UnusedType.Global
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Concurrent;
 using System.Reflection;
 using LanguageExtended.Option;
@@ -10,6 +11,8 @@ namespace LanguageExtended.Mapping;
 /// <summary>
 /// Provides a way to access members (properties and fields) of objects.
 /// </summary>
+[RequiresUnreferencedCode(Mapper.RequiresUnreferencedCodeMessage)]
+[RequiresDynamicCode(Mapper.RequiresDynamicCodeMessage)]
 internal class MemberAccessor
 {
     private readonly StringComparison _stringComparison;

@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Collections;
 using System.Collections.Concurrent;
 // ReSharper disable UnusedMember.Local
 
@@ -8,6 +9,8 @@ namespace LanguageExtended.Mapping;
 /// <summary>
 /// Provides helper methods for working with types.
 /// </summary>
+[RequiresUnreferencedCode(Mapper.RequiresUnreferencedCodeMessage)]
+[RequiresDynamicCode(Mapper.RequiresDynamicCodeMessage)]
 internal class TypeHelper
 {
     private readonly ConcurrentDictionary<Type,Type[]> _interfaceMappingCache = new();

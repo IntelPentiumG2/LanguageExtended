@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Reflection;
@@ -10,6 +11,8 @@ namespace LanguageExtended.Mapping;
 /// <summary>
 /// Provides methods for mapping collections between objects.
 /// </summary>
+[RequiresUnreferencedCode(Mapper.RequiresUnreferencedCodeMessage)]
+[RequiresDynamicCode(Mapper.RequiresDynamicCodeMessage)]
 internal class CollectionMapper
 {
     private readonly MappingOptions _options;

@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using LanguageExtended.Result;
 // ReSharper disable UnusedMember.Local
@@ -9,6 +10,8 @@ namespace LanguageExtended.Mapping;
 /// <summary>
 /// Provides methods for mapping complex types.
 /// </summary>
+[RequiresUnreferencedCode(Mapper.RequiresUnreferencedCodeMessage)]
+[RequiresDynamicCode(Mapper.RequiresDynamicCodeMessage)]
 internal class ComplexTypeMapper
 {
     private readonly Mapper _mapper;
