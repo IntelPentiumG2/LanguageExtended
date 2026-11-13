@@ -1,6 +1,7 @@
 # On every push to master: if the <Version> in LanguageExtended.csproj has no GitHub Release yet,
 # build, test and pack the NuGet package, then create release v<Version> with the package attached
-# and RELEASE_NOTES.md as its message. Bump <Version> to publish a new release.
+# and RELEASE_NOTES.md as its message, and push the package to nuget.org via trusted publishing.
+# Bump <Version> to publish a new release.
 
 name: Release
 
@@ -36,6 +37,10 @@ jobs:
     needs: check
     if: needs.check.outputs.exists == 'false'
     runs-on: ubuntu-latest
+    environment: Release   # must match the Environment in the nuget.org trusted publishing policy
+    permissions:
+      contents: write   # create the GitHub Release
+      id-token: write   # OIDC token for NuGet/login
     env:
       VERSION: ${{ needs.check.outputs.version }}
 
@@ -61,6 +66,14 @@ jobs:
       with:
         name: nuget-package
         path: artifacts/*.nupkg
+    - name: NuGet login (OIDC)
+      id: login
+      uses: NuGet/login@v1
+      with:
+        user: IntelPentiumG2   # nuget.org profile name, not email
+    # Push before creating the GitHub Release: a failed push then leaves no release, so the next run retries.
+    - name: Push to nuget.org
+      run: dotnet nuget push artifacts/*.nupkg --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
     - name: Create GitHub Release
       env:
         GH_TOKEN: ${{ github.token }}
