@@ -84,16 +84,9 @@ internal class MemberAccessor
     /// </summary>
     /// <param name="member">The member to get the type of.</param>
     /// <returns>The type of the member.</returns>
-    internal static Type GetMemberType(MemberInfo member)
-    {
-        // ReSharper disable once SwitchExpressionHandlesSomeKnownEnumValuesWithExceptionInDefault
-        return member.MemberType switch
-        {
-            MemberTypes.Property => ((PropertyInfo)member).PropertyType,
-            MemberTypes.Field => ((FieldInfo)member).FieldType,
-            _ => throw new ArgumentException("Member must be a property or field", nameof(member))
-        };
-    }
+    /// <remarks>Members only come from <see cref="GetTargetMembers"/> and <see cref="FindSourceMember"/>, so they are properties or fields.</remarks>
+    internal static Type GetMemberType(MemberInfo member) =>
+        member is PropertyInfo property ? property.PropertyType : ((FieldInfo)member).FieldType;
     
     /// <summary>
     /// Gets the value of a member (property or field) from an object.
@@ -105,14 +98,7 @@ internal class MemberAccessor
     {
         try
         {
-            // ReSharper disable once SwitchExpressionHandlesSomeKnownEnumValuesWithExceptionInDefault
-            object? value = member.MemberType switch
-            {
-                MemberTypes.Property => ((PropertyInfo)member).GetValue(obj),
-                MemberTypes.Field => ((FieldInfo)member).GetValue(obj),
-                _ => throw new ArgumentException("Member must be a property or field", nameof(member))
-            };
-
+            object? value = member is PropertyInfo property ? property.GetValue(obj) : ((FieldInfo)member).GetValue(obj);
             return Result<object?, MappingError>.Success(value);
         }
         catch (Exception ex)
@@ -135,21 +121,10 @@ internal class MemberAccessor
     {
         try
         {
-            // ReSharper disable once SwitchStatementHandlesSomeKnownEnumValuesWithDefault
-            switch (member.MemberType)
-            {
-                case MemberTypes.Property:
-                    ((PropertyInfo)member).SetValue(target, value);
-                    break;
-                case MemberTypes.Field:
-                    ((FieldInfo)member).SetValue(target, value);
-                    break;
-                default:
-                    return Result<bool, MappingError>.Failure(new MappingError(
-                        $"Member {member.Name} must be a property or field",
-                        MappingErrorType.InvalidMemberType,
-                        member.Name));
-            }
+            if (member is PropertyInfo property)
+                property.SetValue(target, value);
+            else
+                ((FieldInfo)member).SetValue(target, value);
             return Result<bool, MappingError>.Success(true);
         }
         catch (Exception ex)

@@ -44,7 +44,7 @@ internal class TypeHelper
     internal Type GetElementType(Type collectionType)
     {
         if (collectionType.IsArray)
-            return collectionType.GetElementType() ?? typeof(object);
+            return collectionType.GetElementType()!;
         
         if (collectionType.IsGenericType)
         {

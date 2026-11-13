@@ -1,4 +1,3 @@
-using System.Dynamic;
 using System.Reflection;
 using LanguageExtended.Result;
 
@@ -77,13 +76,10 @@ internal class DynamicObjectMapper
         if (source is IDictionary<string, object?> dict)
             return dict;
 
+        // Other dynamic objects (e.g. DynamicObject subclasses): read their public properties.
         Dictionary<string, object?> result = new Dictionary<string, object?>();
-        if (source is IDynamicMetaObjectProvider)
-        {
-            PropertyInfo[] props = source.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance);
-            foreach (PropertyInfo prop in props)
-                result[prop.Name] = prop.GetValue(source);
-        }
+        foreach (PropertyInfo prop in source.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance))
+            result[prop.Name] = prop.GetValue(source);
         return result;
     }
 }
