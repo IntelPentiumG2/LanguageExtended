@@ -1,7 +1,6 @@
 // ReSharper disable UnusedMember.Global
 // ReSharper disable UnusedType.Global
 
-using System.Diagnostics.CodeAnalysis;
 using System.Dynamic;
 using System.Reflection;
 using LanguageExtended.Result;
@@ -46,7 +45,7 @@ public  class Mapper
         _memberAccessor = new MemberAccessor(options.IgnoreCase);
         _complexTypeMapper = new ComplexTypeMapper(this);
         _typeConverter = new TypeConverter(_options.IgnoreCase, _options.Culture);
-        _collectionMapper = new CollectionMapper(this, new TypeHelper(), _typeConverter);
+        _collectionMapper = new CollectionMapper(_options, _complexTypeMapper, new TypeHelper(), _typeConverter);
         _dynamicObjectMapper = new DynamicObjectMapper(_options, _typeConverter, _memberAccessor);
     }
     
@@ -98,13 +97,14 @@ public  class Mapper
                     MappingErrorType.GeneralMappingError));
             }
             
-            Dictionary<object, object> mappingContext = ComplexTypeMapper.CreateMappingContext();
-            mappingContext[source] = target;
-            
-            Result<bool, MappingError> mapResult = Map(source, target, mappingContext);
+            // Box once so a struct target is mapped in place and the mapped copy is returned.
+            object boxed = target;
+            MappingContext mappingContext = new() { [(source, typeof(TTarget))] = boxed };
+
+            Result<bool, MappingError> mapResult = Map(source, boxed, mappingContext);
 
             return mapResult.IsSuccess
-                ? Result<TTarget, MappingError>.Success(target)
+                ? Result<TTarget, MappingError>.Success((TTarget)boxed)
                 : Result<TTarget, MappingError>.Failure(mapResult.Error);
         }
         catch (Exception ex)
@@ -122,20 +122,10 @@ public  class Mapper
     /// </summary>
     /// <param name="source">The source object to map from.</param>
     /// <param name="target">The target object to map to.</param>
-    /// <param name="mappingContext">Dictionary to track already mapped objects for circular reference handling.</param>
+    /// <param name="mappingContext">Tracks already mapped objects for circular reference handling.</param>
     /// <returns>A Result indicating success or failure with an error message.</returns>
-    internal Result<bool, MappingError> Map([MaybeNull] object source, [MaybeNull] object target, Dictionary<object, object> mappingContext)
+    internal Result<bool, MappingError> Map(object source, object target, MappingContext mappingContext)
     {
-        if (source == null)
-            return Result<bool, MappingError>.Failure(new MappingError(
-                "Source cannot be null",
-                MappingErrorType.NullReference));
-
-        if (target == null)
-            return Result<bool, MappingError>.Failure(new MappingError(
-                "Target cannot be null",
-                MappingErrorType.NullReference));
-
         try
         {
             if (source is IDynamicMetaObjectProvider)
@@ -163,7 +153,7 @@ public  class Mapper
     /// <summary>
     /// Maps a single member from source to target.
     /// </summary>
-    private Result<bool, MappingError> MapSingleMember(object source, object target, MemberInfo targetMember, Dictionary<object, object> mappingContext)
+    private Result<bool, MappingError> MapSingleMember(object source, object target, MemberInfo targetMember, MappingContext mappingContext)
     {
         Option<MemberInfo> sourceMemberOption = _memberAccessor.FindSourceMember(source.GetType(), targetMember.Name);
 
@@ -207,8 +197,8 @@ public  class Mapper
     /// <param name="target">The target object to set the value on.</param>
     /// <param name="targetMember">The target member to set the value to.</param>
     /// <param name="source">The source value to map.</param>
-    /// <param name="mappingContext">Dictionary to track already mapped objects for circular reference handling.</param>
-    private Result<bool, MappingError> SetMappedValue(object target, MemberInfo targetMember, object? source, Dictionary<object, object> mappingContext)
+    /// <param name="mappingContext">Tracks already mapped objects for circular reference handling.</param>
+    private Result<bool, MappingError> SetMappedValue(object target, MemberInfo targetMember, object? source, MappingContext mappingContext)
     {
         Type targetMemberType = MemberAccessor.GetMemberType(targetMember);
 #if NET11_0_OR_GREATER

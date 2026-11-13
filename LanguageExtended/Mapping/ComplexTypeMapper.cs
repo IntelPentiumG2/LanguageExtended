@@ -21,77 +21,46 @@ internal class ComplexTypeMapper
     {
         _mapper = mapper;
     }
-    
-    /// <summary>
-    /// Creates a new mapping context dictionary for tracking circular references.
-    /// This should be created per mapping operation to ensure thread safety.
-    /// </summary>
-    /// <returns>A new dictionary for tracking mapped objects.</returns>
-    internal static Dictionary<object, object> CreateMappingContext()
-    {
-        return new Dictionary<object, object>(ReferenceEqualityComparer.Instance);
-    }
-    
+
     /// <summary>
     /// Handles the mapping of complex types.
     /// </summary>
     /// <param name="target">The target object to set the value on.</param>
     /// <param name="targetMember">The target member to set the value to.</param>
     /// <param name="value">The value to map.</param>
-    /// <param name="mappingContext">Dictionary to track already mapped objects for circular reference handling.</param>
+    /// <param name="mappingContext">Tracks already mapped objects for circular reference handling.</param>
     /// <returns>A Result indicating success or failure with an error message.</returns>
-    internal Result<bool, MappingError> HandleComplexType(object target, MemberInfo targetMember, object value, Dictionary<object, object> mappingContext)
+    internal Result<bool, MappingError> HandleComplexType(object target, MemberInfo targetMember, object value, MappingContext mappingContext) =>
+        MapNested(value, MemberAccessor.GetMemberType(targetMember), mappingContext)
+            .Bind(nested => MemberAccessor.SetMemberValue(target, targetMember, nested));
+
+    /// <summary>
+    /// Maps a source object into a new instance of <paramref name="targetType"/>, reusing the instance already
+    /// created for the same source and target type so shared and circular references are preserved.
+    /// </summary>
+    /// <param name="value">The source object.</param>
+    /// <param name="targetType">The type to map into.</param>
+    /// <param name="mappingContext">Tracks already mapped objects for circular reference handling.</param>
+    /// <returns>The mapped instance, or the error that stopped the mapping.</returns>
+    internal Result<object, MappingError> MapNested(object value, Type targetType, MappingContext mappingContext)
     {
-        try
-        {
-            Type targetType = MemberAccessor.GetMemberType(targetMember);
+        if (mappingContext.TryGetValue((value, targetType), out object? existing))
+            return Result<object, MappingError>.Success(existing);
 
-            // Check if we've already mapped this object to prevent circular reference issues
-            if (mappingContext.TryGetValue(value, out object? existingTarget))
-                return MemberAccessor.SetMemberValue(target, targetMember, existingTarget);
-            
-            try
-            {
-                // Create a new instance of the complex type
-                object? nestedTarget = CreateInstanceAdvanced(targetType);
-                
-                if (nestedTarget == null)
-                    return Result<bool, MappingError>.Failure(new MappingError(
-                        $"Failed to create instance of {targetType.Name}",
-                        MappingErrorType.ComplexTypeMappingError,
-                        targetType.Name));
-
-                // Add the new instance to the mapped objects dictionary BEFORE mapping properties
-                mappingContext[value] = nestedTarget;
-
-                // Set the new instance on the target object and check the result
-                Result<bool, MappingError> setResult = MemberAccessor.SetMemberValue(target, targetMember, nestedTarget);
-                return setResult.IsFailure 
-                    ? Result<bool, MappingError>.Failure(setResult.Error) 
-                    : _mapper.Map(value, nestedTarget, mappingContext);
-            }
-            catch (Exception ex)
-            {
-                return Result<bool, MappingError>.Failure(new MappingError(
-                    $"Failed to create nested object: {ex.Message}",
-                    MappingErrorType.ComplexTypeMappingError,
-                    targetType.Name,
-                    ex));
-            }
-        }
-        catch (Exception ex)
-        {
-            return Result<bool, MappingError>.Failure(new MappingError(
-                $"Failed to map complex type: {ex.Message}",
+        if (CreateInstanceAdvanced(targetType) is not { } nested)
+            return Result<object, MappingError>.Failure(new MappingError(
+                $"Failed to create instance of {targetType.Name}",
                 MappingErrorType.ComplexTypeMappingError,
-                targetMember.Name,
-                ex));
-        }
+                targetType.Name));
+
+        // Register before mapping members so a reference back to this source resolves to this instance.
+        mappingContext[(value, targetType)] = nested;
+        return _mapper.Map(value, nested, mappingContext).Map(_ => nested);
     }
-    
+
     /// <summary>
     /// Creates an instance of the specified type using various strategies.
-    /// Tries in order: parameterless constructor, constructor with default values, FormatterServices.
+    /// Tries in order: parameterless constructor, constructor with default values, uninitialized object.
     /// </summary>
     /// <param name="type">The type to instantiate.</param>
     /// <returns>An instance of the type, or null if creation failed.</returns>
@@ -114,36 +83,13 @@ internal class ComplexTypeMapper
             {
                 try
                 {
-                    ParameterInfo[] parameters = constructor.GetParameters();
-                    object?[] parameterValues = new object?[parameters.Length];
+                    // Declared default if any, else default(T) for value types and null for reference types.
+                    object?[] parameterValues = constructor.GetParameters()
+                        .Select(p => p.HasDefaultValue ? p.DefaultValue
+                            : p.ParameterType.IsValueType ? Activator.CreateInstance(p.ParameterType)
+                            : null)
+                        .ToArray();
 
-                    for (int i = 0; i < parameters.Length; i++)
-                    {
-                        ParameterInfo param = parameters[i];
-                        
-                        // Use default value if available
-                        if (param.HasDefaultValue)
-                        {
-                            parameterValues[i] = param.DefaultValue;
-                        }
-                        // Use default for value types
-                        else if (param.ParameterType.IsValueType)
-                        {
-                            parameterValues[i] = Activator.CreateInstance(param.ParameterType);
-                        }
-                        // Use null for nullable reference types or if nulls are allowed
-                        else if (!param.ParameterType.IsValueType)
-                        {
-                            parameterValues[i] = null;
-                        }
-                        else
-                        {
-                            // Can't create this parameter, try the next constructor
-                            break;
-                        }
-                    }
-
-                    // Try to create an instance with these parameters
                     return constructor.Invoke(parameterValues);
                 }
                 catch
@@ -152,12 +98,13 @@ internal class ComplexTypeMapper
                 }
             }
 
-            // Strategy 3: Use FormatterServices to create an uninitialized object (last resort)
-            // This works even without any constructor but should be used carefully because it skips constructor logic
+            // Strategy 3: Create an uninitialized object (last resort).
+            // This works even without any usable constructor but skips constructor logic.
             return type is { IsAbstract: false, IsInterface: false } ? RuntimeHelpers.GetUninitializedObject(type) : null;
         }
         catch
         {
+            // A throwing parameterless constructor ends up here.
             return null;
         }
     }
@@ -171,25 +118,11 @@ internal class ComplexTypeMapper
     internal static Result<bool, MappingError> CreateAndSetComplexType(object target, MemberInfo targetMember)
     {
         Type targetType = MemberAccessor.GetMemberType(targetMember);
-        try
-        {
-            object? instance = CreateInstanceAdvanced(targetType);
-            
-            if (instance == null)
-                return Result<bool, MappingError>.Failure(new MappingError(
-                    $"Failed to create instance of {targetType.Name}",
-                    MappingErrorType.ComplexTypeMappingError,
-                    targetType.Name));
-            
-            return MemberAccessor.SetMemberValue(target, targetMember, instance);
-        }
-        catch (Exception ex)
-        {
-            return Result<bool, MappingError>.Failure(new MappingError(
-                $"Failed to create instance of {targetType.Name}: {ex.Message}",
+        return CreateInstanceAdvanced(targetType) is { } instance
+            ? MemberAccessor.SetMemberValue(target, targetMember, instance)
+            : Result<bool, MappingError>.Failure(new MappingError(
+                $"Failed to create instance of {targetType.Name}",
                 MappingErrorType.ComplexTypeMappingError,
-                targetType.Name,
-                ex));
-        }
+                targetType.Name));
     }
 }

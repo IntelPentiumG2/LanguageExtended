@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Reflection;
 using LanguageExtended.Result;
 // ReSharper disable UnusedMember.Local
@@ -11,158 +12,201 @@ namespace LanguageExtended.Mapping;
 /// </summary>
 internal class CollectionMapper
 {
+    private readonly MappingOptions _options;
+    private readonly ComplexTypeMapper _complexTypeMapper;
     private readonly TypeHelper _typeHelper;
     private readonly TypeConverter _typeConverter;
-    private readonly Mapper _mapper;
 
     /// <summary>
     /// Initializes a new instance of the CollectionMapper class.
     /// </summary>
-    /// <param name="mapper">The Mapper</param>
+    /// <param name="options">The mapping options</param>
+    /// <param name="complexTypeMapper">Maps complex elements</param>
     /// <param name="typeHelper">The Helper</param>
     /// <param name="typeConverter">The <see cref="TypeConverter"/> to use for conversions</param>
-    internal CollectionMapper(Mapper mapper, TypeHelper typeHelper, TypeConverter typeConverter)
+    internal CollectionMapper(MappingOptions options, ComplexTypeMapper complexTypeMapper, TypeHelper typeHelper, TypeConverter typeConverter)
     {
+        _options = options;
+        _complexTypeMapper = complexTypeMapper;
         _typeHelper = typeHelper;
-        _mapper = mapper;
         _typeConverter = typeConverter;
     }
-    
-        /// <summary>
+
+    /// <summary>
     /// Handles the mapping of collections.
     /// </summary>
     /// <param name="target">The target object to set the value on.</param>
     /// <param name="targetMember">The target member to set the value to.</param>
     /// <param name="value">The value to map.</param>
-    /// <param name="mappingContext">Dictionary to track already mapped objects for circular reference handling.</param>
+    /// <param name="mappingContext">Tracks already mapped objects for circular reference handling.</param>
     /// <returns>A Result indicating success or failure with an error message.</returns>
-    internal Result<bool, MappingError> HandleCollection(object target, MemberInfo targetMember, object value, Dictionary<object, object> mappingContext)
+    internal Result<bool, MappingError> HandleCollection(object target, MemberInfo targetMember, object value, MappingContext mappingContext) =>
+        MapCollection(value, MemberAccessor.GetMemberType(targetMember), mappingContext)
+            .Bind(collection => MemberAccessor.SetMemberValue(target, targetMember, collection));
+
+    /// <summary>
+    /// Maps a source collection into a new collection of <paramref name="collectionType"/>.
+    /// </summary>
+    private Result<object?, MappingError> MapCollection(object value, Type collectionType, MappingContext mappingContext)
     {
         try
         {
-            Type collectionType = MemberAccessor.GetMemberType(targetMember);
-            Type elementType = _typeHelper.GetElementType(collectionType);
-            IEnumerable sourceCollection = (IEnumerable)value;
-            
             if (GetDictionaryTypes(collectionType) is [Type keyType, Type valueType])
-                return HandleDictionary(target, targetMember, value, keyType, valueType);
+                return MapDictionary(value, collectionType, keyType, valueType, mappingContext);
 
-            List<object?> mappedItems = [];
+            Type elementType = _typeHelper.GetElementType(collectionType);
+            IList items = (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(elementType))!;
 
-            foreach (object? item in sourceCollection)
+            foreach (object? item in (IEnumerable)value)
             {
-                // Untyped collections (ArrayList, List<object>) keep their items: object has no members to map into.
-                if (item == null || elementType == typeof(object))
-                {
-                    mappedItems.Add(item);
-                    continue;
-                }
-
-                if (TypeHelper.IsComplexType(elementType))
-                {
-                    object? nestedTarget = Activator.CreateInstance(elementType);
-
-                    if (nestedTarget == null) 
-                        continue;
-                    
-                    // Map the item to the nested target
-                    _mapper.Map(item, nestedTarget, mappingContext);
-                    mappedItems.Add(nestedTarget);
-                }
-                else
-                {
-                    Result<object?, MappingError> conversionResult = _typeConverter.TryConvertValue(item, elementType);
-                    if (conversionResult.IsSuccess)
-                    {
-                        mappedItems.Add(conversionResult.Value);
-                    }
-                }
+                Result<object?, MappingError> mapped = MapValue(item, elementType, mappingContext);
+                if (mapped.IsSuccess)
+                    items.Add(mapped.Value);
+                else if (!_options.LenientMappingErrors)
+                    return mapped;
             }
 
-            // Create and set the appropriate collection
             if (collectionType.IsArray)
             {
-                // Create an array of the correct size and type
-                Array array = Array.CreateInstance(elementType, mappedItems.Count);
-                
-                // Copy items to the array
-                for (int i = 0; i < mappedItems.Count; i++)
-                {
-                    array.SetValue(mappedItems[i], i);
-                }
-                
-                // Set the array on the target member
-                return MemberAccessor.SetMemberValue(target, targetMember, array);
+                Array array = Array.CreateInstance(elementType, items.Count);
+                items.CopyTo(array, 0);
+                return Result<object?, MappingError>.Success(array);
             }
 
-            Result<IList, MappingError> collectionResult = TryCreateCollection(collectionType, elementType);
-            if (collectionResult.IsFailure)
-                return Result<bool, MappingError>.Failure(collectionResult.Error);
-
-            IList targetCollection = collectionResult.Value;
-            foreach (var item in mappedItems)
-            {
-                targetCollection.Add(item);
-            }
-            return MemberAccessor.SetMemberValue(target, targetMember, targetCollection);
+            return Materialize(collectionType, items, elementType);
         }
         catch (Exception ex)
         {
-            return Result<bool, MappingError>.Failure(new MappingError(
-                $"Failed to map collection: {ex.Message}",
+            // Covers throwing collection constructors and duplicate keys after key conversion.
+            return Result<object?, MappingError>.Failure(new MappingError(
+                $"Failed to map collection of type {collectionType.Name}: {ex.Message}",
                 MappingErrorType.CollectionMappingError,
-                targetMember.Name,
+                collectionType.Name,
                 ex));
         }
     }
-        
+
     /// <summary>
-    /// Handles the mapping of dictionary collections from source to target.
+    /// Maps the entries of a source dictionary into a Dictionary&lt;K,V&gt;, then into <paramref name="dictionaryType"/>.
     /// </summary>
-    /// <param name="target">The target object where the mapped dictionary will be set.</param>
-    /// <param name="targetMember">The member (property or field) on the target object that will receive the dictionary.</param>
-    /// <param name="value">The source dictionary to map from.</param>
-    /// <param name="keyType">The key type of the target dictionary.</param>
-    /// <param name="valueType">The value type of the target dictionary.</param>
-    /// <returns>A Result indicating success or failure with an error message.</returns>
-    /// <remarks>
-    /// This method creates an appropriate target dictionary instance, converts source dictionary entries
-    /// to match the target types, and sets the resulting dictionary on the target member.
-    /// </remarks>
-    private Result<bool, MappingError> HandleDictionary(object target, MemberInfo targetMember, object value, Type keyType, Type valueType)
+    private Result<object?, MappingError> MapDictionary(object value, Type dictionaryType, Type keyType, Type valueType, MappingContext mappingContext)
     {
-        try
+        if (value is not IDictionary source)
+            return Result<object?, MappingError>.Failure(new MappingError(
+                $"Cannot map {value.GetType().Name} to dictionary type {dictionaryType.Name}: source is not a dictionary",
+                MappingErrorType.CollectionMappingError,
+                dictionaryType.Name));
+
+        IDictionary entries = (IDictionary)Activator.CreateInstance(typeof(Dictionary<,>).MakeGenericType(keyType, valueType))!;
+        foreach (DictionaryEntry entry in source)
         {
-            Type collectionType = MemberAccessor.GetMemberType(targetMember);
-            IDictionary sourceDictionary = (IDictionary)value;
+            Result<object?, MappingError> key = MapValue(entry.Key, keyType, mappingContext);
+            Result<object?, MappingError> mapped = key.IsSuccess ? MapValue(entry.Value, valueType, mappingContext) : key;
+            if (mapped.IsSuccess)
+                entries.Add(key.Value!, mapped.Value); // Mapping a non-null key never yields null; Add throws on collisions instead of losing data.
+            else if (!_options.LenientMappingErrors)
+                return mapped;
+        }
 
-            Result<IDictionary, MappingError> dictionaryResult = TryCreateDictionary(collectionType, keyType, valueType);
-            if (dictionaryResult.IsFailure)
-                return Result<bool, MappingError>.Failure(dictionaryResult.Error);
+        Type entryType = typeof(KeyValuePair<,>).MakeGenericType(keyType, valueType);
+        return Materialize(dictionaryType, entries, entryType);
+    }
 
-            IDictionary targetDictionary = dictionaryResult.Value;
-            foreach (DictionaryEntry entry in sourceDictionary)
+    /// <summary>
+    /// Maps a single element, key or value the same way the mapper maps a member value.
+    /// </summary>
+    private Result<object?, MappingError> MapValue(object? item, Type targetType, MappingContext mappingContext)
+    {
+        // object has no members to map into, so untyped collections (ArrayList, List<object>) keep their items.
+        if (item is null || targetType == typeof(object))
+            return Result<object?, MappingError>.Success(item);
+
+        Type itemType = item.GetType();
+        if (TypeHelper.IsComplexType(targetType) && TypeHelper.IsComplexType(itemType))
+            return _complexTypeMapper.MapNested(item, targetType, mappingContext).Map<object?>(nested => nested);
+
+        if (TypeHelper.IsCollection(targetType) && TypeHelper.IsCollection(itemType))
+            return MapCollection(item, targetType, mappingContext);
+
+        return _typeConverter.TryConvertValue(item, targetType);
+    }
+
+    /// <summary>
+    /// Turns the mapped items (a List&lt;T&gt; or Dictionary&lt;K,V&gt;) into an instance of <paramref name="targetType"/>.
+    /// </summary>
+    /// <param name="targetType">The collection type the target member declares.</param>
+    /// <param name="items">The mapped items.</param>
+    /// <param name="itemType">The type of a single item (T, or KeyValuePair&lt;K,V&gt; for dictionaries).</param>
+    private static Result<object?, MappingError> Materialize(Type targetType, IEnumerable items, Type itemType)
+    {
+        // List<T>, IList<T>, IEnumerable<T>, IReadOnlyList<T>, Dictionary<K,V>, IDictionary<K,V>, ...
+        if (targetType.IsInstanceOfType(items))
+            return Result<object?, MappingError>.Success(items);
+
+        Type setType = typeof(HashSet<>).MakeGenericType(itemType);
+        if (targetType.IsInterface && targetType.IsAssignableFrom(setType))
+            return Result<object?, MappingError>.Success(Activator.CreateInstance(setType, items));
+
+        if (targetType is { IsAbstract: false, IsInterface: false })
+        {
+            Type genericCollection = typeof(ICollection<>).MakeGenericType(itemType);
+            bool hasDefaultCtor = targetType.GetConstructor(Type.EmptyTypes) != null;
+
+            // HashSet<T>, SortedSet<T>, LinkedList<T>, SortedDictionary<K,V>, ConcurrentDictionary<K,V>, custom collections
+            if (hasDefaultCtor && genericCollection.IsAssignableFrom(targetType))
             {
-                Result<object?, MappingError> keyConversionResult = _typeConverter.TryConvertValue(entry.Key, keyType);
-                Result<object?, MappingError> valueConversionResult = _typeConverter.TryConvertValue(entry.Value, valueType);
-
-                // Converting a non-null key never yields null.
-                if (keyConversionResult.IsSuccess && valueConversionResult.IsSuccess)
-                    targetDictionary.Add(keyConversionResult.Value!, valueConversionResult.Value);
+                object collection = Activator.CreateInstance(targetType)!;
+                MethodInfo add = genericCollection.GetMethod(nameof(ICollection<object>.Add))!;
+                foreach (object? item in items)
+                    add.Invoke(collection, [item]);
+                return Result<object?, MappingError>.Success(collection);
             }
 
-            return MemberAccessor.SetMemberValue(target, targetMember, targetDictionary);
+            // Non-generic collections such as ArrayList and Hashtable
+            if (hasDefaultCtor && typeof(IList).IsAssignableFrom(targetType))
+            {
+                IList list = (IList)Activator.CreateInstance(targetType)!;
+                foreach (object? item in items)
+                    list.Add(item);
+                return Result<object?, MappingError>.Success(list);
+            }
+
+            if (hasDefaultCtor && typeof(IDictionary).IsAssignableFrom(targetType) && items is IDictionary entries)
+            {
+                IDictionary dictionary = (IDictionary)Activator.CreateInstance(targetType)!;
+                foreach (DictionaryEntry entry in entries)
+                    dictionary.Add(entry.Key, entry.Value);
+                return Result<object?, MappingError>.Success(dictionary);
+            }
+
+            // Types built from their items: Queue<T>, Stack<T>, ReadOnlyCollection<T>, ReadOnlyDictionary<K,V>, ...
+            ConstructorInfo? fromItems = targetType.GetConstructors()
+                .FirstOrDefault(c => c.GetParameters() is [{ } p] && p.ParameterType.IsInstanceOfType(items));
+            if (fromItems != null)
+                return Result<object?, MappingError>.Success(fromItems.Invoke([IsStack(targetType) ? Reverse(items, itemType) : items]));
         }
-        catch (Exception ex)
-        {
-            return Result<bool, MappingError>.Failure(new MappingError(
-                $"Failed to map dictionary: {ex.Message}",
-                MappingErrorType.CollectionMappingError,
-                targetMember.Name,
-                ex));
-        }
+
+        return Result<object?, MappingError>.Failure(new MappingError(
+            $"Cannot create collection of type {targetType.Name}",
+            MappingErrorType.CollectionCreationError,
+            targetType.Name));
     }
-            
+
+    /// <summary>
+    /// Stacks enumerate top first but push in enumeration order, so their items must be reversed to keep the order.
+    /// </summary>
+    private static bool IsStack(Type type) =>
+        type == typeof(Stack)
+        || type.IsGenericType && type.GetGenericTypeDefinition() is var d && (d == typeof(Stack<>) || d == typeof(ConcurrentStack<>));
+
+    private static IList Reverse(IEnumerable items, Type itemType)
+    {
+        IList reversed = (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(itemType))!;
+        foreach (object? item in items)
+            reversed.Insert(0, item);
+        return reversed;
+    }
+
     /// <summary>
     /// Gets the key and value types of a dictionary type, or null if the type is not a dictionary.
     /// Checks the generic IDictionary/IReadOnlyDictionary interfaces (which do not imply the non-generic IDictionary)
@@ -177,112 +221,4 @@ internal class CollectionMapper
                                      || t.GetGenericTypeDefinition() == typeof(IReadOnlyDictionary<,>)))
             ?.GetGenericArguments()
         ?? (typeof(IDictionary).IsAssignableFrom(type) ? [typeof(object), typeof(object)] : null);
-
-    /// <summary>
-    /// Tries to create a dictionary instance of the specified type with the given key and value types.
-    /// </summary>
-    /// <param name="dictionaryType">The type of dictionary to create.</param>
-    /// <param name="keyType">The type of keys in the dictionary.</param>
-    /// <param name="valueType">The type of values in the dictionary.</param>
-    /// <returns>A Result containing the created dictionary or an error message.</returns>
-    private static Result<IDictionary, MappingError> TryCreateDictionary(Type dictionaryType, Type keyType, Type valueType)
-    {
-        try
-        {
-            Type dictType = typeof(Dictionary<,>).MakeGenericType(keyType, valueType);
-
-            if (dictionaryType.IsInterface && dictionaryType.IsAssignableFrom(dictType))
-            {
-                return Activator.CreateInstance(dictType) is IDictionary dict
-                    ? Result<IDictionary, MappingError>.Success(dict)
-                    : Result<IDictionary, MappingError>.Failure(new MappingError(
-                        $"Failed to create dictionary of type {dictionaryType.Name}",
-                        MappingErrorType.DictionaryCreationError,
-                        dictionaryType.Name));
-            }
-
-            if (dictionaryType is { IsClass: true, IsAbstract: false } 
-                && dictionaryType.GetConstructor(Type.EmptyTypes) != null)
-            {
-                return Activator.CreateInstance(dictionaryType) is IDictionary dict
-                    ? Result<IDictionary, MappingError>.Success(dict)
-                    : Result<IDictionary, MappingError>.Failure(new MappingError(
-                        $"Failed to create dictionary of type {dictionaryType.Name}",
-                        MappingErrorType.DictionaryCreationError,
-                        dictionaryType.Name));
-            }
-
-            return Result<IDictionary, MappingError>.Failure(new MappingError(
-                $"Failed to create dictionary of type {dictionaryType.Name}",
-                MappingErrorType.DictionaryCreationError,
-                dictionaryType.Name));
-        }
-        catch (Exception ex)
-        {
-            return Result<IDictionary, MappingError>.Failure(new MappingError(
-                $"Failed to create dictionary of type {dictionaryType.Name}: {ex.Message}",
-                MappingErrorType.DictionaryCreationError,
-                dictionaryType.Name,
-                ex));
-        }
-    }
-
-    /// <summary>
-    /// Tries to create a collection of the specified type and element type.
-    /// </summary>
-    /// <param name="collectionType">The type of the collection to create.</param>
-    /// <param name="elementType">The type of the elements in the collection.</param>
-    /// <returns>A Result containing the created collection or an error message.</returns>
-    private static Result<IList, MappingError> TryCreateCollection(Type collectionType, Type elementType)
-    {
-        try
-        {
-            if (collectionType.IsArray)
-            {
-                return Result<IList, MappingError>.Success(new ArrayList());
-            }
-
-            Type listType = typeof(List<>).MakeGenericType(elementType);
-
-            // Simply use a List<T> for any interface type
-            if (collectionType.IsInterface)
-            {
-                object? instance = Activator.CreateInstance(listType);
-                return instance is IList list
-                    ? Result<IList, MappingError>.Success(list)
-                    : Result<IList, MappingError>.Failure(new MappingError(
-                        $"Failed to create collection of type {collectionType.Name}",
-                        MappingErrorType.CollectionCreationError,
-                        collectionType.Name));
-            }
-
-            // For concrete types with parameterless constructors
-            if (collectionType is { IsClass: true, IsAbstract: false } &&
-                collectionType.GetConstructor(Type.EmptyTypes) != null)
-            {
-                return Activator.CreateInstance(collectionType) is IList list
-                    ? Result<IList, MappingError>.Success(list)
-                    : Result<IList, MappingError>.Failure(new MappingError(
-                        $"Failed to create collection of type {collectionType.Name}",
-                        MappingErrorType.CollectionCreationError,
-                        collectionType.Name));
-            }
-
-            // Fallback to creating a List<T>
-            return Activator.CreateInstance(listType) is IList iList
-                ? Result<IList, MappingError>.Success(iList)
-                : Result<IList, MappingError>.Failure(new MappingError(
-                    $"Failed to create collection of type {collectionType.Name}",
-                    MappingErrorType.CollectionCreationError,
-                    collectionType.Name));
-        }
-        catch (Exception ex)
-        {
-            return Result<IList, MappingError>.Failure(new MappingError(
-                $"Failed to create collection of type {collectionType.Name}: {ex.Message}",
-                MappingErrorType.CollectionCreationError,
-                collectionType.Name,
-                ex));
-        }
-    }
 }
