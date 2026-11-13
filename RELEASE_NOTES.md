@@ -1,4 +1,4 @@
-# LanguageExtended 2.1.0 — mapper fixes
+# LanguageExtended — mapper fixes release
 
 This release fixes the mapper's handling of collections, dictionaries, dynamic sources and struct targets, and adds support for more collection types. Option and Result are unchanged.
 
@@ -14,6 +14,16 @@ This release fixes the mapper's handling of collections, dictionaries, dynamic s
 6. **`DynamicObject` subclasses are read like regular objects:** only the properties being mapped are read. A throwing getter on an unrelated property no longer fails the mapping.
 7. **Dictionary error types:** a dictionary type that can't be created now reports `CollectionCreationError` (was `DictionaryCreationError`). A non-dictionary source for a dictionary target reports `CollectionMappingError`.
 
+## New
+
+**More collection types for mapped members.** Collection members can now also be:
+
+- `ISet<T>`, `IReadOnlySet<T>` (filled as a `HashSet<T>`)
+- any type with a parameterless constructor and `ICollection<T>.Add`: `HashSet<T>`, `SortedSet<T>`, `LinkedList<T>`, `ObservableCollection<T>`, `SortedDictionary<K,V>`, `ConcurrentDictionary<K,V>`, custom collections
+- types built from their items: `Queue<T>`, `Stack<T>` and `ConcurrentStack<T>` (order kept), `ReadOnlyCollection<T>`, `ReadOnlyDictionary<K,V>`
+
+Types the mapper still can't create, such as `ImmutableList<T>`, fail with a `CollectionCreationError`.
+
 ## Fixed
 
 - **Crash on circular references through collections.** A list item that referenced its parent made the process die with a stack overflow, which can't be caught. Cycles now map to the same target instance, as they already did for plain properties.
@@ -27,19 +37,10 @@ This release fixes the mapper's handling of collections, dictionaries, dynamic s
 - **A nested `ExpandoObject` failed** with a `ConversionError`.
 - **Nested collections are converted element by element.** For example, `List<string[]>` into `List<List<int>>`.
 
-## New collection types
-
-Collection members can now also be:
-
-- `ISet<T>`, `IReadOnlySet<T>` (filled as a `HashSet<T>`)
-- any type with a parameterless constructor and `ICollection<T>.Add`: `HashSet<T>`, `SortedSet<T>`, `LinkedList<T>`, `ObservableCollection<T>`, `SortedDictionary<K,V>`, `ConcurrentDictionary<K,V>`, custom collections
-- types built from their items: `Queue<T>`, `Stack<T>` and `ConcurrentStack<T>` (order kept), `ReadOnlyCollection<T>`, `ReadOnlyDictionary<K,V>`
-
-Types the mapper still can't create, such as `ImmutableList<T>`, fail with a `CollectionCreationError`.
-
-## Deprecated
+## Other changes
 
 - **`MappingOptions.IgnoreMissingSourceMembers`** is now `[Obsolete]`. It never had an effect: source members without a matching target member are always ignored. It will be removed in the next major version.
+- The mapper internals were consolidated: dynamic sources, collection elements and dictionary entries now share the member-mapping code, and unreachable branches were removed.
 
 ## Known limitations
 
