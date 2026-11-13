@@ -7,8 +7,8 @@ This release fixes the mapper's handling of collections, dictionaries, dynamic s
 1. **Collection items and dictionary entries that fail conversion now fail the mapping** with a `ConversionError`, the same as a single property. Before, they were dropped silently, e.g. `["1", "x"]` into `List<int>` gave `[1]`. Set `LenientMappingErrors` to skip them as before.
 2. **Errors inside collection elements are no longer ignored.** If a complex element can't be mapped, for example because a member is missing, the whole mapping fails. Before, it reported success and returned the half-mapped element.
 3. **`ThrowOnMappingFailure` now works.** `Map` and `MapWithoutDefaultConstructor` throw a `MappingException` instead of returning a failed result. The exception carries the `MappingError`, uses its message, and wraps its `Exception` as `InnerException`. Before, the option had no effect.
-4. **`ExpandoObject` sources go through the same logic as other sources.** Nested objects, collections, `IgnoreCase` and `CreateEmptyObjectsInsteadOfNull` now apply to them. Two side effects:
-   - With `IgnoreCase`, keys that differ only in case (`name` and `Name`) fail the mapping with a `GeneralMappingError` instead of one being picked at random.
+4. **`ExpandoObject` sources go through the same logic as other sources.** Nested objects, collections, `IgnoreCase` and `CreateEmptyObjectsInsteadOfNull` now apply to them; before, `IgnoreCase` had no effect on `ExpandoObject` sources. Two side effects:
+   - With `IgnoreCase`, an `ExpandoObject` with keys that differ only in case (`name` and `Name`) fails the mapping with a `GeneralMappingError`.
    - A target setter that throws now fails the mapping even with `LenientMappingErrors`, as it already did for other sources.
 5. **Nested objects inside an `ExpandoObject` are copied.** Before, the target got the same instance as the source.
 6. **`DynamicObject` subclasses are read like regular objects:** only the properties being mapped are read. A throwing getter on an unrelated property no longer fails the mapping.
@@ -44,4 +44,4 @@ Types the mapper still can't create, such as `ImmutableList<T>`, fail with a `Co
 ## Known limitations
 
 - **Native AOT:** the mapper is reflection-based and not AOT-compatible.
-- **Generic-only dictionaries as sources:** a source dictionary must implement the non-generic `IDictionary`. All BCL dictionaries do; `ExpandoObject` used as a dictionary *value* does not.
+- **Generic-only dictionaries as sources:** the source for a dictionary-typed member must implement the non-generic `IDictionary`. All BCL dictionaries do, but `ExpandoObject` does not, so an `ExpandoObject` can't be mapped into a dictionary member.
