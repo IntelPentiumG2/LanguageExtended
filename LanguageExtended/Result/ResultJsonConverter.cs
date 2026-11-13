@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -8,8 +9,14 @@ namespace LanguageExtended.Result;
 /// Writes <c>{"value": ...}</c> on success and <c>{"error": ...}</c> on failure.
 /// </summary>
 /// <example><c>options.Converters.Add(new ResultJsonConverterFactory());</c></example>
+/// <remarks>
+/// Trimming-safe, but not Native AOT compatible, because it closes the converter type at runtime. Under Native AOT,
+/// register <see cref="ResultJsonConverter{T, TError}"/> for each closed type instead.
+/// </remarks>
+[RequiresDynamicCode("Creates converters at runtime. Under Native AOT register ResultJsonConverter<T, TError> for each closed type instead.")]
 public sealed class ResultJsonConverterFactory : JsonConverterFactory
 {
+
     /// <inheritdoc />
     public override bool CanConvert(Type typeToConvert) =>
         typeToConvert.IsGenericType && typeToConvert.GetGenericTypeDefinition() == typeof(Result<,>);
@@ -20,13 +27,21 @@ public sealed class ResultJsonConverterFactory : JsonConverterFactory
             typeof(ResultJsonConverter<,>).MakeGenericType(typeToConvert.GetGenericArguments()))!;
 }
 
-internal sealed class ResultJsonConverter<T, TError> : JsonConverter<Result<T, TError>>
+/// <summary>
+/// Opt-in System.Text.Json support for one closed <see cref="Result{T, TError}"/> type, in the same format as
+/// <see cref="ResultJsonConverterFactory"/>. Native AOT compatible.
+/// </summary>
+/// <example><c>[JsonSourceGenerationOptions(Converters = [typeof(ResultJsonConverter&lt;int, string&gt;)])]</c></example>
+/// <typeparam name="T">The success value type.</typeparam>
+/// <typeparam name="TError">The error type.</typeparam>
+public sealed class ResultJsonConverter<T, TError> : JsonConverter<Result<T, TError>>
 {
     // Fixed names: the discriminator is part of the wire format, not subject to naming policies.
     private const string ValueName = "value";
     private const string ErrorName = "error";
     private const string Shape = "Expected {\"value\": ...} or {\"error\": ...}.";
 
+    /// <inheritdoc />
     public override Result<T, TError> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         if (reader.TokenType != JsonTokenType.StartObject || !reader.Read() || reader.TokenType != JsonTokenType.PropertyName)
@@ -49,6 +64,7 @@ internal sealed class ResultJsonConverter<T, TError> : JsonConverter<Result<T, T
         return result;
     }
 
+    /// <inheritdoc />
     public override void Write(Utf8JsonWriter writer, Result<T, TError> value, JsonSerializerOptions options)
     {
         writer.WriteStartObject();

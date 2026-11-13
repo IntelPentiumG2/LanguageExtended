@@ -7,7 +7,11 @@ namespace LanguageExtended.Option;
 /// This class works with value types (structs).
 /// </summary>
 /// <typeparam name="T">The type of the value of the ValueOption</typeparam>
+#if NET11_0_OR_GREATER
+[JsonConverter(typeof(ValueOptionJsonConverter<>))] // closed by System.Text.Json itself, so it works under Native AOT
+#else
 [JsonConverter(typeof(OptionJsonConverterFactory))]
+#endif
 public readonly partial struct ValueOption<T> : IEquatable<ValueOption<T>> where T : struct
 {
     private readonly T _value;

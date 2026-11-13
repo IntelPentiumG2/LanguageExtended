@@ -18,6 +18,16 @@ public class ResultJsonTests
     }
 
     [Fact]
+    public void ClosedConverter_MatchesFactoryFormat()
+    {
+        // The AOT-safe registration: one closed converter instead of the factory.
+        JsonSerializerOptions closed = new() { Converters = { new ResultJsonConverter<int, string>() } };
+
+        Assert.Equal("""{"value":5}""", JsonSerializer.Serialize(Result<int, string>.Success(5), closed));
+        Assert.Equal("e", JsonSerializer.Deserialize<Result<int, string>>("""{"error":"e"}""", closed).Error);
+    }
+
+    [Fact]
     public void Success_RoundTrips()
     {
         Assert.Equal(5, RoundTrip(Result<int, string>.Success(5), """{"value":5}""").Value);

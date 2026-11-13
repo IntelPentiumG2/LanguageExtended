@@ -8,7 +8,11 @@ namespace LanguageExtended.Option;
 /// Represents an optional value that may or may not have a value.
 /// </summary>
 /// <typeparam name="T"> The type of the value of the Option </typeparam>
+#if NET11_0_OR_GREATER
+[JsonConverter(typeof(OptionJsonConverter<>))] // closed by System.Text.Json itself, so it works under Native AOT
+#else
 [JsonConverter(typeof(OptionJsonConverterFactory))]
+#endif
 public readonly partial struct Option<T> : IEquatable<Option<T>> where T : class
 {
     private readonly T? _value;
