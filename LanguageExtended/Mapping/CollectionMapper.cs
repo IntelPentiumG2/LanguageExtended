@@ -44,18 +44,17 @@ internal class CollectionMapper
             Type elementType = _typeHelper.GetElementType(collectionType);
             IEnumerable sourceCollection = (IEnumerable)value;
             
-            if (typeof(IDictionary).IsAssignableFrom(collectionType))
-            {
-                return HandleDictionary(target, targetMember, value);
-            }
-            
+            if (GetDictionaryTypes(collectionType) is [Type keyType, Type valueType])
+                return HandleDictionary(target, targetMember, value, keyType, valueType);
+
             List<object?> mappedItems = [];
 
             foreach (object? item in sourceCollection)
             {
-                if (item == null)
+                // Untyped collections (ArrayList, List<object>) keep their items: object has no members to map into.
+                if (item == null || elementType == typeof(object))
                 {
-                    mappedItems.Add(null);
+                    mappedItems.Add(item);
                     continue;
                 }
 
@@ -123,20 +122,18 @@ internal class CollectionMapper
     /// <param name="target">The target object where the mapped dictionary will be set.</param>
     /// <param name="targetMember">The member (property or field) on the target object that will receive the dictionary.</param>
     /// <param name="value">The source dictionary to map from.</param>
+    /// <param name="keyType">The key type of the target dictionary.</param>
+    /// <param name="valueType">The value type of the target dictionary.</param>
     /// <returns>A Result indicating success or failure with an error message.</returns>
     /// <remarks>
-    /// This method extracts key and value types from the target dictionary type,
-    /// creates an appropriate target dictionary instance, converts source dictionary entries
+    /// This method creates an appropriate target dictionary instance, converts source dictionary entries
     /// to match the target types, and sets the resulting dictionary on the target member.
     /// </remarks>
-    private Result<bool, MappingError> HandleDictionary(object target, MemberInfo targetMember, object value)
+    private Result<bool, MappingError> HandleDictionary(object target, MemberInfo targetMember, object value, Type keyType, Type valueType)
     {
         try
         {
             Type collectionType = MemberAccessor.GetMemberType(targetMember);
-            Type[] genericArgs = collectionType.GetGenericArguments();
-            Type keyType = genericArgs[0];
-            Type valueType = genericArgs[1];
             IDictionary sourceDictionary = (IDictionary)value;
 
             Result<IDictionary, MappingError> dictionaryResult = TryCreateDictionary(collectionType, keyType, valueType);
@@ -166,7 +163,22 @@ internal class CollectionMapper
         }
     }
             
-                /// <summary>
+    /// <summary>
+    /// Gets the key and value types of a dictionary type, or null if the type is not a dictionary.
+    /// Checks the generic IDictionary/IReadOnlyDictionary interfaces (which do not imply the non-generic IDictionary)
+    /// and falls back to object keys and values for a non-generic IDictionary such as Hashtable.
+    /// </summary>
+    /// <param name="type">The type to inspect.</param>
+    /// <returns>The key and value types, or null.</returns>
+    private static Type[]? GetDictionaryTypes(Type type) =>
+        type.GetInterfaces().Prepend(type)
+            .FirstOrDefault(t => t.IsGenericType
+                                 && (t.GetGenericTypeDefinition() == typeof(IDictionary<,>)
+                                     || t.GetGenericTypeDefinition() == typeof(IReadOnlyDictionary<,>)))
+            ?.GetGenericArguments()
+        ?? (typeof(IDictionary).IsAssignableFrom(type) ? [typeof(object), typeof(object)] : null);
+
+    /// <summary>
     /// Tries to create a dictionary instance of the specified type with the given key and value types.
     /// </summary>
     /// <param name="dictionaryType">The type of dictionary to create.</param>
